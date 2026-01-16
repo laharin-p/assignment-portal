@@ -1,0 +1,12 @@
+
+body {
+    min-height: 80vh;
+    background: url("/static/images/login_bg.jpeg") no-repeat center center fixed;
+    background-size: cover;
+    font-family: Arial, sans-serif;
+}
+
+.card {
+    background-color: rgba(255, 255, 255, 0.9);
+    border-radius: 12px;
+}

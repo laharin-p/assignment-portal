@@ -1,0 +1,134 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Teacher Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+</head>
+<body class="bg-light">
+
+<!-- NAVBAR -->
+<nav class="navbar navbar-dark bg-dark px-4">
+    <span class="navbar-brand">Teacher Dashboard</span>
+    <span class="text-white">Welcome {{ teacher_name }}</span>
+    <a href="/teacher/logout" class="btn btn-danger btn-sm">Logout</a>
+</nav>
+
+<div class="container mt-4">
+
+    <!-- UPLOAD ASSIGNMENT -->
+    <div class="card shadow p-4 mb-4">
+        <h4 class="mb-3">Upload Assignment</h4>
+
+        <form method="POST" action="/teacher/upload" enctype="multipart/form-data" class="row g-3">
+
+            <div class="col-md-6">
+                <input type="text" name="title" class="form-control"
+                       placeholder="Assignment Title" required>
+            </div>
+
+            <div class="col-md-2">
+                <select name="year" class="form-select" required>
+                    <option value="">Year</option>
+                    <option>1</option>
+                    <option>2</option>
+                    <option>3</option>
+                    <option>4</option>
+                </select>
+            </div>
+
+            <div class="col-md-2">
+                <select name="branch" class="form-select" required>
+                    <option value="">Branch</option>
+                    <option>CSE</option>
+                    <option>ECE</option>
+                    <option>EEE</option>
+                    <option>AIDS</option>
+                    <option>CSM</option>
+                    <option>CSE-DS</option>
+                    <option>MECH</option>
+                    <option>CIVIL</option>
+                    <option>IT</option>
+                </select>
+            </div>
+
+            <div class="col-md-2">
+                <select name="section" class="form-select" required>
+                    <option value="">Section</option>
+                    <option>A</option>
+                    <option>B</option>
+                    <option>C</option>
+                    <option>D</option>
+                    <option>E</option>
+                    <option>F</option>
+                    <option>G</option>
+                    <option>H</option>
+                    <option>I</option>
+                </select>
+            </div>
+
+            <div class="col-md-4">
+                <input type="date" name="due_date" class="form-control" required>
+            </div>
+
+            <div class="col-md-8">
+                <input type="file" name="file" class="form-control" required>
+            </div>
+
+            <div class="col-md-12">
+                <button class="btn btn-primary">Upload Assignment</button>
+            </div>
+
+        </form>
+    </div>
+
+    <!-- ASSIGNMENTS TABLE -->
+    <div class="card shadow p-4">
+        <h4>Assignments</h4>
+
+        <table class="table table-bordered table-hover mt-3 align-middle">
+            <thead class="table-dark">
+                <tr>
+                    <th>Title</th>
+                    <th>Class</th>
+                    <th>Due Date</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+
+                {% for a in assignments %}
+                <tr>
+                    <td>{{ a.title }}</td>
+                    <td>{{ a.branch }} {{ a.year }}-{{ a.section }}</td>
+                    <td>{{ a.due_date }}</td>
+                    <td>
+                        <a href="/teacher/submissions/{{ a.id }}"
+                           class="btn btn-info btn-sm mb-1">
+                            View Submissions
+                        </a>
+
+                        <a href="/teacher/pending/{{ a.id }}"
+                           class="btn btn-warning btn-sm mb-1">
+                            Pending Students
+                        </a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="4" class="text-center text-muted">
+                        No assignments found
+                    </td>
+                </tr>
+                {% endfor %}
+
+            </tbody>
+        </table>
+    </div>
+
+</div>
+
+</body>
+</html>

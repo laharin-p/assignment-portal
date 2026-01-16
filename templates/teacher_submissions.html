@@ -1,0 +1,64 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Student Submissions</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+
+<div class="container mt-4">
+    <h3 class="mb-3">Student Submissions</h3>
+
+    <table class="table table-bordered table-hover">
+        <thead class="table-dark">
+            <tr>
+                <th>Student ID</th>
+                <th>File</th>
+                <th>Plagiarism %</th>
+                <th>Marks</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+
+        {% for s in submissions %}
+        <tr>
+            <td>{{ s.student.rollno }}</td>
+
+            <td>
+                <a href="/submissions/{{ s.filename }}" target="_blank">
+                    Download
+                </a>
+            </td>
+
+            <td>
+                {{ s.plagiarism }} %
+            </td>
+
+            <td>
+                {{ s.marks if s.marks else "Not Given" }}
+            </td>
+
+            <td>
+                <form method="POST">
+                    <input type="hidden" name="submission_id" value="{{ s.id }}">
+                    <input type="number" name="marks" class="form-control mb-1" required>
+                    <button class="btn btn-success btn-sm">Save</button>
+                </form>
+            </td>
+        </tr>
+        {% else %}
+        <tr>
+            <td colspan="5" class="text-center text-muted">No submissions</td>
+        </tr>
+        {% endfor %}
+
+        </tbody>
+    </table>
+
+    <a href="/teacher/dashboard" class="btn btn-secondary">Back</a>
+</div>
+
+</body>
+</html>
