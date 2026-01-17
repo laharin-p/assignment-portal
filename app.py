@@ -1,5 +1,5 @@
 from datetime import datetime
-from flask import Flask, render_template, request, redirect, session, send_from_directory
+from flask import Flask, render_template, request, redirect, session, send_from_directory,url_for
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
@@ -119,7 +119,7 @@ def check_plagiarism(new_file, student, assignment_id):
 # ---------------- HOME ----------------
 @app.route("/")
 def home():
-    return "✅ Assignment Portal Running"
+    return redirect(url_for("student_login"))
 
 
 # ---------------- STUDENT ----------------
