@@ -213,6 +213,11 @@ def student_submit(assignment_id):
     db.session.commit()
 
     return redirect(url_for("student_dashboard"))
+@app.route("/student/logout")
+def student_logout():
+    session.pop("student_id", None)
+    return redirect(url_for("student_login"))
+
 
 # ---------------- TEACHER ----------------
 @app.route("/teacher/register", methods=["GET", "POST"])
