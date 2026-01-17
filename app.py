@@ -1,5 +1,6 @@
+
 from datetime import datetime
-from flask import Flask, render_template, request, redirect, session, send_from_directory,url_for
+from flask import Flask, render_template, request, redirect, session, send_from_directory, url_for
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
@@ -18,14 +19,8 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db = SQLAlchemy(app)
 
 # ---------------- FOLDERS ----------------
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-
 UPLOAD_FOLDER = os.path.join(app.root_path, "uploads")
 SUBMISSION_FOLDER = os.path.join(app.root_path, "submissions")
-
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-os.makedirs(SUBMISSION_FOLDER, exist_ok=True)
-
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(SUBMISSION_FOLDER, exist_ok=True)
 
@@ -72,7 +67,6 @@ class Submission(db.Model):
 
     student = db.relationship("Student", backref="submissions")
 
-
 # ---------------- PLAGIARISM ----------------
 def extract_text(path):
     if path.endswith(".txt"):
@@ -115,22 +109,16 @@ def check_plagiarism(new_file, student, assignment_id):
 
     return max_score
 
-
 # ---------------- HOME ----------------
 @app.route("/")
 def home():
     return redirect(url_for("student_login"))
 
-
 # ---------------- STUDENT ----------------
 @app.route("/student/register", methods=["GET", "POST"])
 def student_register():
     if request.method == "POST":
-        existing = Student.query.filter_by(
-            email=request.form["email"]
-        ).first()
-
-        if existing:
+        if Student.query.filter_by(email=request.form["email"]).first():
             return render_template(
                 "student_register.html",
                 error="Email already registered. Please login."
@@ -148,8 +136,7 @@ def student_register():
         )
         db.session.add(s)
         db.session.commit()
-
-        return redirect(url_for("/student/login"))
+        return redirect(url_for("student_login"))
 
     return render_template("student_register.html")
 
@@ -166,8 +153,6 @@ def student_login():
         return "Invalid credentials"
 
     return render_template("student_login.html")
-
-
 
 
 @app.route("/student/dashboard")
@@ -196,7 +181,7 @@ def student_dashboard():
 @app.route("/student/submit/<int:assignment_id>", methods=["POST"])
 def student_submit(assignment_id):
     if "student_id" not in session:
-        return redirect("/student/login")
+        return redirect(url_for("student_login"))
 
     file = request.files.get("file")
     if not file or file.filename == "":
@@ -221,8 +206,7 @@ def student_submit(assignment_id):
     db.session.add(sub)
     db.session.commit()
 
-    return redirect("/student/dashboard")
-
+    return redirect(url_for("student_dashboard"))
 
 # ---------------- TEACHER ----------------
 @app.route("/teacher/register", methods=["GET", "POST"])
@@ -235,7 +219,7 @@ def teacher_register():
         )
         db.session.add(t)
         db.session.commit()
-        return redirect("/teacher/login")
+        return redirect(url_for("teacher_login"))
     return render_template("teacher_register.html")
 
 
@@ -245,14 +229,14 @@ def teacher_login():
         t = Teacher.query.filter_by(email=request.form["email"]).first()
         if t and check_password_hash(t.password, request.form["password"]):
             session["teacher_id"] = t.id
-            return redirect("/teacher/dashboard")
+            return redirect(url_for("teacher_dashboard"))
     return render_template("teacher_login.html")
 
 
 @app.route("/teacher/dashboard")
 def teacher_dashboard():
     if "teacher_id" not in session:
-        return redirect("/teacher/login")
+        return redirect(url_for("teacher_login"))
 
     teacher = Teacher.query.get(session["teacher_id"])
     assignments = Assignment.query.all()
@@ -262,7 +246,7 @@ def teacher_dashboard():
 @app.route("/teacher/upload", methods=["POST"])
 def teacher_upload():
     if "teacher_id" not in session:
-        return redirect("/teacher/login")
+        return redirect(url_for("teacher_login"))
 
     file = request.files["file"]
     filename = f"{uuid.uuid4().hex}_{secure_filename(file.filename)}"
@@ -278,13 +262,13 @@ def teacher_upload():
     )
     db.session.add(a)
     db.session.commit()
-    return redirect("/teacher/dashboard")
+    return redirect(url_for("teacher_dashboard"))
 
 
 @app.route("/teacher/submissions/<int:assignment_id>", methods=["GET", "POST"])
 def teacher_submissions(assignment_id):
     if "teacher_id" not in session:
-        return redirect("/teacher/login")
+        return redirect(url_for("teacher_login"))
 
     if request.method == "POST":
         sub = Submission.query.get(request.form["submission_id"])
@@ -311,11 +295,10 @@ def teacher_pending(assignment_id):
         section=assignment.section
     ).all()
 
-    submitted = [s.student_id for s in Submission.query.filter_by(assignment_id=assignment_id).all()]
-    pending = [s for s in all_students if s.id not in submitted]
+    submitted_ids = [s.student_id for s in Submission.query.filter_by(assignment_id=assignment_id).all()]
+    pending = [s for s in all_students if s.id not in submitted_ids]
 
     return render_template("teacher_pending.html", students=pending, assignment=assignment)
-
 
 # ---------------- DOWNLOAD ----------------
 @app.route("/download/assignment/<filename>")
@@ -327,9 +310,8 @@ def download_assignment(filename):
 def download_submission(filename):
     return send_from_directory(SUBMISSION_FOLDER, filename, as_attachment=True)
 
-
 # ---------------- RUN ----------------
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()
-        
+        print("✅ DATABASE READY")
