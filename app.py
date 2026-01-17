@@ -154,7 +154,7 @@ def student_register():
     return render_template("student_register.html")
 
 
-@app.route("student_login", methods=["GET", "POST"])
+@app.route("/student/login", methods=["GET", "POST"])
 def student_login():
     if request.method == "POST":
         student = Student.query.filter_by(email=request.form["email"]).first()
@@ -329,8 +329,7 @@ def download_submission(filename):
 
 
 # ---------------- RUN ----------------
-if __name__ == "__main__":
+
     with app.app_context():
         db.create_all()
-        print("✅ DATABASE READY")
-    app.run()
+        
