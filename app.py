@@ -149,18 +149,16 @@ def student_login():
         student = Student.query.filter_by(email=request.form["email"]).first()
         print("STUDENT FOUND:", student)
 
-        if student:
-            print("PASSWORD MATCH:",
-                  check_password_hash(student.password, request.form["password"]))
-
         if student and check_password_hash(student.password, request.form["password"]):
             session["student_id"] = student.id
             return redirect(url_for("student_dashboard"))
 
-        return "Invalid credentials"
+        return render_template(
+            "student_login.html",
+            error="Invalid email or password"
+        )
 
     return render_template("student_login.html")
-
 
 
 @app.route("/student/dashboard")
