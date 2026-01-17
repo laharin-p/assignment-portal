@@ -126,6 +126,16 @@ def home():
 @app.route("/student/register", methods=["GET", "POST"])
 def student_register():
     if request.method == "POST":
+        existing = Student.query.filter_by(
+            email=request.form["email"]
+        ).first()
+
+        if existing:
+            return render_template(
+                "student_register.html",
+                error="Email already registered. Please login."
+            )
+
         s = Student(
             name=request.form["name"],
             rollno=request.form["rollno"],
@@ -138,7 +148,9 @@ def student_register():
         )
         db.session.add(s)
         db.session.commit()
-        return redirect("student_login")
+
+        return redirect(url_for("student_login"))
+
     return render_template("student_register.html")
 
 

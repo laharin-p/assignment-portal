@@ -50,6 +50,11 @@
 
             <div class="card-body p-4">
                 <form method="POST" action="/student/register">
+                    {% if error %}
+<div class="alert alert-danger text-center">
+    {{ error }}
+</div>
+{% endif %}
 
                     <div class="mb-3">
                         <label class="form-label">Full Name</label>
@@ -122,6 +127,7 @@
                     <button type="submit" class="btn btn-primary w-100 py-2 mt-2">
                         Register
                     </button>
+
 
                 </form>
             </div>
