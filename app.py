@@ -144,7 +144,14 @@ def student_register():
 @app.route("/student/login", methods=["GET", "POST"])
 def student_login():
     if request.method == "POST":
+        print("FORM DATA:", request.form)
+
         student = Student.query.filter_by(email=request.form["email"]).first()
+        print("STUDENT FOUND:", student)
+
+        if student:
+            print("PASSWORD MATCH:",
+                  check_password_hash(student.password, request.form["password"]))
 
         if student and check_password_hash(student.password, request.form["password"]):
             session["student_id"] = student.id
@@ -153,6 +160,7 @@ def student_login():
         return "Invalid credentials"
 
     return render_template("student_login.html")
+
 
 
 @app.route("/student/dashboard")
