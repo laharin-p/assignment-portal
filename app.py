@@ -20,8 +20,8 @@ db = SQLAlchemy(app)
 # ---------------- FOLDERS ----------------
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-UPLOAD_FOLDER = os.path.join(BASE_DIR, "uploads")
-SUBMISSION_FOLDER = os.path.join(BASE_DIR, "submissions")
+UPLOAD_FOLDER = os.path.join(app.root_path, "uploads")
+SUBMISSION_FOLDER = os.path.join(app.root_path, "submissions")
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(SUBMISSION_FOLDER, exist_ok=True)
@@ -138,24 +138,30 @@ def student_register():
         )
         db.session.add(s)
         db.session.commit()
-        return redirect("/student/login")
+        return redirect("student_login")
     return render_template("student_register.html")
 
 
 @app.route("/student/login", methods=["GET", "POST"])
 def student_login():
     if request.method == "POST":
-        s = Student.query.filter_by(email=request.form["email"]).first()
-        if s and check_password_hash(s.password, request.form["password"]):
-            session["student_id"] = s.id
-            return redirect("/student/dashboard")
+        student = Student.query.filter_by(email=request.form["email"]).first()
+
+        if student and check_password_hash(student.password, request.form["password"]):
+            session["student_id"] = student.id
+            return redirect(url_for("student_dashboard"))
+
+        return "Invalid credentials"
+
     return render_template("student_login.html")
+
+
 
 
 @app.route("/student/dashboard")
 def student_dashboard():
     if "student_id" not in session:
-        return redirect("/student/login")
+        return redirect(url_for("student_login"))
 
     student = Student.query.get(session["student_id"])
     assignments = Assignment.query.filter_by(
