@@ -149,7 +149,7 @@ def student_register():
         db.session.add(s)
         db.session.commit()
 
-        return redirect(url_for("student_login"))
+        return redirect(url_for("/student/login"))
 
     return render_template("student_register.html")
 
@@ -329,7 +329,7 @@ def download_submission(filename):
 
 
 # ---------------- RUN ----------------
-
+if __name__ == "__main__":
     with app.app_context():
         db.create_all()
         
