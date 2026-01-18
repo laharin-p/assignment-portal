@@ -334,8 +334,6 @@ def download_submission(filename):
     return send_from_directory(SUBMISSION_FOLDER, filename, as_attachment=True)
 
 # ---------------- RUN ----------------
-if __name__ == "__main__":
-    with app.app_context():
-        db.create_all()
-        app.run(debug=True)
-        print("✅ DATABASE READY")
+with app.app_context():
+    db.create_all()
+    print("✅ DATABASE READY")
