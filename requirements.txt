@@ -2,7 +2,7 @@
 flask
 flask_sqlalchemy
 gunicorn
-WSSerkzeug
+Werkzeug
 PyPDF2
 python-docx
 psycopg2-binary
