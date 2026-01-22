@@ -13,7 +13,7 @@
     <table class="table table-bordered table-hover">
         <thead class="table-dark">
             <tr>
-                <th>Student ID</th>
+                <th>Student Roll No</th>
                 <th>File</th>
                 <th>Plagiarism %</th>
                 <th>Marks</th>
@@ -27,18 +27,15 @@
             <td>{{ s.student.rollno }}</td>
 
             <td>
-                <a href="/submissions/{{ s.filename }}" target="_blank">
+                <a href="{{ url_for('download_submission', filename=s.filename) }}"
+                   class="btn btn-sm btn-primary">
                     Download
                 </a>
             </td>
 
-            <td>
-                {{ s.plagiarism }} %
-            </td>
+            <td>{{ s.plagiarism }}%</td>
 
-            <td>
-                {{ s.marks if s.marks else "Not Given" }}
-            </td>
+            <td>{{ s.marks if s.marks else "Not Given" }}</td>
 
             <td>
                 <form method="POST">

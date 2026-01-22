@@ -328,10 +328,21 @@ def teacher_pending(assignment_id):
 def download_assignment(filename):
     return send_from_directory(UPLOAD_FOLDER, filename, as_attachment=True)
 
+@app.route("/download/submission/<int:submission_id>")
+def download_submission(submission_id):
 
-@app.route("/download/submission/<filename>")
-def download_submission(filename):
-    return send_from_directory(SUBMISSION_FOLDER, filename, as_attachment=True)
+    if "student_id" not in session and "teacher_id" not in session:
+        abort(403)
+
+    submission = Submission.query.get_or_404(submission_id)
+
+    return send_file(
+        io.BytesIO(submission.file_data),
+        download_name=submission.filename,
+        as_attachment=True
+    )
+
+
 
 # ---------------- RUN ----------------
 with app.app_context():
