@@ -26,12 +26,13 @@
         <tr>
             <td>{{ s.student.rollno }}</td>
 
+            <!-- ✅ CLOUDINARY DOWNLOAD -->
             <td>
-                <a href="{{ url_for('download_submission', filename=s.filename) }}"
-   class="btn btn-sm btn-primary">
-   Download
-</a>
-
+                <a href="{{ s.file_url }}" 
+                   target="_blank"
+                   class="btn btn-sm btn-primary">
+                   Download
+                </a>
             </td>
 
             <td>{{ s.plagiarism }}%</td>
@@ -48,7 +49,9 @@
         </tr>
         {% else %}
         <tr>
-            <td colspan="5" class="text-center text-muted">No submissions</td>
+            <td colspan="5" class="text-center text-muted">
+                No submissions
+            </td>
         </tr>
         {% endfor %}
 
