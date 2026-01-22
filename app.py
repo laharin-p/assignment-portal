@@ -5,6 +5,7 @@ from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from PyPDF2 import PdfReader
+from flask import abort, send_from_directory
 import docx
 import os
 import uuid
@@ -12,6 +13,11 @@ import uuid
 # ---------------- APP SETUP ----------------
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+SUBMISSION_FOLDER = os.path.join(BASE_DIR, "submissions")
+
+os.makedirs(SUBMISSION_FOLDER, exist_ok=True)
 
 # ---------------- DATABASE ----------------
 # ---------------- DATABASE ----------------
@@ -328,15 +334,15 @@ def teacher_pending(assignment_id):
 def download_assignment(filename):
     return send_from_directory(UPLOAD_FOLDER, filename, as_attachment=True)
 
-@app.route("/download/submission/<path:filename>", endpoint="download_submission")
+@app.route("/download/submission/<path:filename>")
 def download_submission(filename):
-    # login protection
+
     if "student_id" not in session and "teacher_id" not in session:
         abort(403)
 
     file_path = os.path.join(SUBMISSION_FOLDER, filename)
 
-    if not os.path.exists(file_path):
+    if not os.path.isfile(file_path):
         abort(404)
 
     return send_from_directory(
@@ -344,7 +350,6 @@ def download_submission(filename):
         filename,
         as_attachment=True
     )
-
 
 # ---------------- RUN ----------------
 with app.app_context():
