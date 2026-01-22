@@ -330,6 +330,7 @@ def download_assignment(filename):
 
 @app.route("/download/submission/<path:filename>", endpoint="download_submission")
 def download_submission(filename):
+    # login protection
     if "student_id" not in session and "teacher_id" not in session:
         abort(403)
 
