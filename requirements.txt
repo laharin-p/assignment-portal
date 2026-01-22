@@ -2,6 +2,7 @@
 flask
 flask_sqlalchemy
 gunicorn
+cloudinary
 Werkzeug
 PyPDF2
 python-docx
