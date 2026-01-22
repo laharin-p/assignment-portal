@@ -1,44 +1,37 @@
 
 from datetime import datetime
-from flask import Flask, render_template, request, redirect, session, send_from_directory, url_for
+from flask import (
+    Flask, render_template, request, redirect,
+    session, url_for, abort, send_from_directory
+)
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from PyPDF2 import PdfReader
-from flask import abort, send_from_directory
 import docx
-import os
-import uuid
+import os, uuid
 
 # ---------------- APP SETUP ----------------
 app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY", "dev-secret")
+app.secret_key = os.environ.get("SECRET_KEY", "change-this-secret")
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-SUBMISSION_FOLDER = os.path.join(BASE_DIR, "submissions")
+# ---------------- DATABASE (CLOUD ONLY) ----------------
+DATABASE_URL = os.environ.get("DATABASE_URL")
+if not DATABASE_URL:
+    raise RuntimeError("DATABASE_URL is required for cloud deployment")
 
-os.makedirs(SUBMISSION_FOLDER, exist_ok=True)
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
-# ---------------- DATABASE ----------------
-# ---------------- DATABASE ----------------
-database_url = os.environ.get("DATABASE_URL")
-
-if not database_url:
-    raise Exception("DATABASE_URL is missing. Set it in Render Environment Variables.")
-
-if database_url.startswith("postgres://"):
-    database_url = database_url.replace("postgres://", "postgresql://", 1)
-
-app.config["SQLALCHEMY_DATABASE_URI"] = database_url
+app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-
 db = SQLAlchemy(app)
 
-
-
 # ---------------- FOLDERS ----------------
-UPLOAD_FOLDER = os.path.join(app.root_path, "uploads")
-SUBMISSION_FOLDER = os.path.join(app.root_path, "submissions")
+UPLOAD_FOLDER = os.path.join(BASE_DIR, "uploads")
+SUBMISSION_FOLDER = os.path.join(BASE_DIR, "submissions")
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(SUBMISSION_FOLDER, exist_ok=True)
 
@@ -89,15 +82,12 @@ class Submission(db.Model):
 def extract_text(path):
     if path.endswith(".txt"):
         return open(path, "r", errors="ignore").read()
-
     if path.endswith(".pdf"):
         reader = PdfReader(path)
         return " ".join(page.extract_text() or "" for page in reader.pages)
-
     if path.endswith(".docx"):
         doc = docx.Document(path)
         return " ".join(p.text for p in doc.paragraphs)
-
     return ""
 
 
@@ -121,10 +111,9 @@ def check_plagiarism(new_file, student, assignment_id):
     max_score = 0
     for s in subs:
         old_path = os.path.join(SUBMISSION_FOLDER, s.filename)
-        if os.path.exists(old_path):
+        if os.path.isfile(old_path):
             old_text = extract_text(old_path)
             max_score = max(max_score, plagiarism_percent(new_text, old_text))
-
     return max_score
 
 # ---------------- HOME ----------------
@@ -132,15 +121,12 @@ def check_plagiarism(new_file, student, assignment_id):
 def home():
     return redirect(url_for("student_login"))
 
-# ---------------- STUDENT ----------------
+# ================= STUDENT =================
 @app.route("/student/register", methods=["GET", "POST"])
 def student_register():
     if request.method == "POST":
         if Student.query.filter_by(email=request.form["email"]).first():
-            return render_template(
-                "student_register.html",
-                error="Email already registered. Please login."
-            )
+            return render_template("student_register.html", error="Email already exists")
 
         s = Student(
             name=request.form["name"],
@@ -162,20 +148,12 @@ def student_register():
 @app.route("/student/login", methods=["GET", "POST"])
 def student_login():
     if request.method == "POST":
-        print("FORM DATA:", request.form)
-
         student = Student.query.filter_by(email=request.form["email"]).first()
-        print("STUDENT FOUND:", student)
-
         if student and check_password_hash(student.password, request.form["password"]):
+            session.clear()
             session["student_id"] = student.id
             return redirect(url_for("student_dashboard"))
-
-        return render_template(
-            "student_login.html",
-            error="Invalid email or password"
-        )
-
+        return render_template("student_login.html", error="Invalid credentials")
     return render_template("student_login.html")
 
 
@@ -185,11 +163,16 @@ def student_dashboard():
         return redirect(url_for("student_login"))
 
     student = Student.query.get(session["student_id"])
+    if not student:
+        session.clear()
+        return redirect(url_for("student_login"))
+
     assignments = Assignment.query.filter_by(
         year=student.year,
         branch=student.branch,
         section=student.section
     ).all()
+
     submissions = Submission.query.filter_by(student_id=student.id).all()
 
     return render_template(
@@ -197,8 +180,7 @@ def student_dashboard():
         student=student,
         assignments=assignments,
         submissions=submissions,
-        today=datetime.today(),
-        datetime=datetime
+        today=datetime.today()
     )
 
 
@@ -208,8 +190,8 @@ def student_submit(assignment_id):
         return redirect(url_for("student_login"))
 
     file = request.files.get("file")
-    if not file or file.filename == "":
-        return "No file selected"
+    if not file:
+        abort(400)
 
     student = Student.query.get(session["student_id"])
     filename = f"{uuid.uuid4().hex}_{secure_filename(file.filename)}"
@@ -229,15 +211,15 @@ def student_submit(assignment_id):
     )
     db.session.add(sub)
     db.session.commit()
-
     return redirect(url_for("student_dashboard"))
+
+
 @app.route("/student/logout")
 def student_logout():
-    session.pop("student_id", None)
+    session.clear()
     return redirect(url_for("student_login"))
 
-
-# ---------------- TEACHER ----------------
+# ================= TEACHER =================
 @app.route("/teacher/register", methods=["GET", "POST"])
 def teacher_register():
     if request.method == "POST":
@@ -257,8 +239,10 @@ def teacher_login():
     if request.method == "POST":
         t = Teacher.query.filter_by(email=request.form["email"]).first()
         if t and check_password_hash(t.password, request.form["password"]):
+            session.clear()
             session["teacher_id"] = t.id
             return redirect(url_for("teacher_dashboard"))
+        return render_template("teacher_login.html", error="Invalid credentials")
     return render_template("teacher_login.html")
 
 
@@ -306,7 +290,6 @@ def teacher_submissions(assignment_id):
 
     submissions = Submission.query.filter_by(assignment_id=assignment_id).all()
     assignment = Assignment.query.get(assignment_id)
-
     return render_template(
         "teacher_submissions.html",
         submissions=submissions,
@@ -318,40 +301,43 @@ def teacher_submissions(assignment_id):
 def teacher_pending(assignment_id):
     assignment = Assignment.query.get(assignment_id)
 
-    all_students = Student.query.filter_by(
+    students = Student.query.filter_by(
         year=assignment.year,
         branch=assignment.branch,
         section=assignment.section
     ).all()
 
-    submitted_ids = [s.student_id for s in Submission.query.filter_by(assignment_id=assignment_id).all()]
-    pending = [s for s in all_students if s.id not in submitted_ids]
+    submitted_ids = [
+        s.student_id for s in Submission.query.filter_by(assignment_id=assignment_id).all()
+    ]
 
+    pending = [s for s in students if s.id not in submitted_ids]
     return render_template("teacher_pending.html", students=pending, assignment=assignment)
 
-# ---------------- DOWNLOAD ----------------
+
+@app.route("/teacher/logout")
+def teacher_logout():
+    session.clear()
+    return redirect(url_for("teacher_login"))
+
+# ================= DOWNLOAD =================
 @app.route("/download/assignment/<filename>")
 def download_assignment(filename):
     return send_from_directory(UPLOAD_FOLDER, filename, as_attachment=True)
 
+
 @app.route("/download/submission/<path:filename>")
 def download_submission(filename):
-
     if "student_id" not in session and "teacher_id" not in session:
         abort(403)
 
     file_path = os.path.join(SUBMISSION_FOLDER, filename)
-
     if not os.path.isfile(file_path):
         abort(404)
 
-    return send_from_directory(
-        SUBMISSION_FOLDER,
-        filename,
-        as_attachment=True
-    )
+    return send_from_directory(SUBMISSION_FOLDER, filename, as_attachment=True)
 
-# ---------------- RUN ----------------
+# ---------------- STARTUP ----------------
 with app.app_context():
     db.create_all()
     print("✅ DATABASE READY")
