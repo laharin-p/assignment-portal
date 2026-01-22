@@ -156,32 +156,25 @@ def student_login():
         return render_template("student_login.html", error="Invalid credentials")
     return render_template("student_login.html")
 
-
 @app.route("/student/dashboard")
 def student_dashboard():
     if "student_id" not in session:
         return redirect(url_for("student_login"))
 
-    student = Student.query.get(session["student_id"])
-    if not student:
-        session.clear()
-        return redirect(url_for("student_login"))
+    assignments = Assignment.query.all()
 
-    assignments = Assignment.query.filter_by(
-        year=student.year,
-        branch=student.branch,
-        section=student.section
+    submissions = Submission.query.filter_by(
+        student_id=session["student_id"]
     ).all()
-
-    submissions = Submission.query.filter_by(student_id=student.id).all()
 
     return render_template(
         "student_dashboard.html",
-        student=student,
         assignments=assignments,
         submissions=submissions,
-        today=datetime.today()
+        today=datetime.today(),
+        datetime=datetime   # 👈 IMPORTANT FIX
     )
+
 
 
 @app.route("/student/submit/<int:assignment_id>", methods=["POST"])
@@ -328,14 +321,20 @@ def download_assignment(filename):
 
 @app.route("/download/submission/<path:filename>")
 def download_submission(filename):
+
     if "student_id" not in session and "teacher_id" not in session:
         abort(403)
 
     file_path = os.path.join(SUBMISSION_FOLDER, filename)
+
     if not os.path.isfile(file_path):
         abort(404)
 
-    return send_from_directory(SUBMISSION_FOLDER, filename, as_attachment=True)
+    return send_from_directory(
+        SUBMISSION_FOLDER,
+        filename,
+        as_attachment=True
+    )
 
 # ---------------- STARTUP ----------------
 with app.app_context():
