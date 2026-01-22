@@ -12,6 +12,7 @@
 <!-- NAVBAR -->
 <nav class="navbar navbar-dark bg-dark px-4">
     <span class="navbar-brand">Student Dashboard</span>
+    <a href="{{ url_for('student_logout') }}" class="btn btn-danger btn-sm">Logout</a>
 </nav>
 
 <!-- 🔔 MESSAGE AFTER SUBMISSION -->
@@ -61,8 +62,9 @@
                         {% endif %}
                     </td>
 
+                    <!-- ✅ CLOUDINARY DOWNLOAD -->
                     <td>
-                        <a href="{{ url_for('download_assignment', filename=a.filename) }}"
+                        <a href="{{ a.file_url }}" target="_blank"
                            class="btn btn-success btn-sm">
                             Download
                         </a>
@@ -114,8 +116,9 @@
                 <tr>
                     <td>{{ s.assignment_id }}</td>
 
+                    <!-- ✅ CLOUDINARY SUBMISSION DOWNLOAD -->
                     <td>
-                        <a href="{{ url_for('download_submission', filename=s.filename) }}"
+                        <a href="{{ s.file_url }}" target="_blank"
                            class="btn btn-secondary btn-sm">
                             Download
                         </a>

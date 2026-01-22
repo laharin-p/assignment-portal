@@ -2,25 +2,22 @@
 from datetime import datetime
 from flask import (
     Flask, render_template, request, redirect,
-    session, url_for, abort, send_from_directory
+    session, url_for, abort
 )
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
-from werkzeug.utils import secure_filename
-from PyPDF2 import PdfReader
-import docx
-import os, uuid
+import cloudinary
+import cloudinary.uploader
+import os
 
 # ---------------- APP SETUP ----------------
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "change-this-secret")
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-
-# ---------------- DATABASE (CLOUD ONLY) ----------------
+# ---------------- DATABASE ----------------
 DATABASE_URL = os.environ.get("DATABASE_URL")
 if not DATABASE_URL:
-    raise RuntimeError("DATABASE_URL is required for cloud deployment")
+    raise RuntimeError("DATABASE_URL is required")
 
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
@@ -29,11 +26,12 @@ app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db = SQLAlchemy(app)
 
-# ---------------- FOLDERS ----------------
-UPLOAD_FOLDER = os.path.join(BASE_DIR, "uploads")
-SUBMISSION_FOLDER = os.path.join(BASE_DIR, "submissions")
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-os.makedirs(SUBMISSION_FOLDER, exist_ok=True)
+# ---------------- CLOUDINARY ----------------
+cloudinary.config(
+    cloud_name=os.environ.get("CLOUD_NAME"),
+    api_key=os.environ.get("API_KEY"),
+    api_secret=os.environ.get("API_SECRET")
+)
 
 # ---------------- MODELS ----------------
 class Teacher(db.Model):
@@ -58,7 +56,7 @@ class Student(db.Model):
 class Assignment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200))
-    filename = db.Column(db.String(200))
+    file_url = db.Column(db.Text)
     branch = db.Column(db.String(50))
     year = db.Column(db.String(10))
     section = db.Column(db.String(10))
@@ -72,49 +70,11 @@ class Submission(db.Model):
     year = db.Column(db.String(10))
     branch = db.Column(db.String(20))
     section = db.Column(db.String(10))
-    filename = db.Column(db.String(200))
-    plagiarism = db.Column(db.Float)
+    file_url = db.Column(db.Text)
+    plagiarism = db.Column(db.Float, default=0)
     marks = db.Column(db.Integer)
 
     student = db.relationship("Student", backref="submissions")
-
-# ---------------- PLAGIARISM ----------------
-def extract_text(path):
-    if path.endswith(".txt"):
-        return open(path, "r", errors="ignore").read()
-    if path.endswith(".pdf"):
-        reader = PdfReader(path)
-        return " ".join(page.extract_text() or "" for page in reader.pages)
-    if path.endswith(".docx"):
-        doc = docx.Document(path)
-        return " ".join(p.text for p in doc.paragraphs)
-    return ""
-
-
-def plagiarism_percent(t1, t2):
-    s1 = set(t1.lower().split())
-    s2 = set(t2.lower().split())
-    if not s1 or not s2:
-        return 0
-    return round(len(s1 & s2) / len(s1 | s2) * 100, 2)
-
-
-def check_plagiarism(new_file, student, assignment_id):
-    new_text = extract_text(new_file)
-    subs = Submission.query.filter_by(
-        assignment_id=assignment_id,
-        year=student.year,
-        branch=student.branch,
-        section=student.section
-    ).all()
-
-    max_score = 0
-    for s in subs:
-        old_path = os.path.join(SUBMISSION_FOLDER, s.filename)
-        if os.path.isfile(old_path):
-            old_text = extract_text(old_path)
-            max_score = max(max_score, plagiarism_percent(new_text, old_text))
-    return max_score
 
 # ---------------- HOME ----------------
 @app.route("/")
@@ -156,13 +116,13 @@ def student_login():
         return render_template("student_login.html", error="Invalid credentials")
     return render_template("student_login.html")
 
+
 @app.route("/student/dashboard")
 def student_dashboard():
     if "student_id" not in session:
         return redirect(url_for("student_login"))
 
     assignments = Assignment.query.all()
-
     submissions = Submission.query.filter_by(
         student_id=session["student_id"]
     ).all()
@@ -172,9 +132,8 @@ def student_dashboard():
         assignments=assignments,
         submissions=submissions,
         today=datetime.today(),
-        datetime=datetime   # 👈 IMPORTANT FIX
+        datetime=datetime
     )
-
 
 
 @app.route("/student/submit/<int:assignment_id>", methods=["POST"])
@@ -186,12 +145,13 @@ def student_submit(assignment_id):
     if not file:
         abort(400)
 
-    student = Student.query.get(session["student_id"])
-    filename = f"{uuid.uuid4().hex}_{secure_filename(file.filename)}"
-    path = os.path.join(SUBMISSION_FOLDER, filename)
-    file.save(path)
+    student = Student.query.get_or_404(session["student_id"])
 
-    plagiarism = check_plagiarism(path, student, assignment_id)
+    result = cloudinary.uploader.upload(
+        file,
+        folder="submissions",
+        resource_type="raw"
+    )
 
     sub = Submission(
         student_id=student.id,
@@ -199,9 +159,9 @@ def student_submit(assignment_id):
         year=student.year,
         branch=student.branch,
         section=student.section,
-        filename=filename,
-        plagiarism=plagiarism
+        file_url=result["secure_url"]
     )
+
     db.session.add(sub)
     db.session.commit()
     return redirect(url_for("student_dashboard"))
@@ -244,9 +204,8 @@ def teacher_dashboard():
     if "teacher_id" not in session:
         return redirect(url_for("teacher_login"))
 
-    teacher = Teacher.query.get(session["teacher_id"])
     assignments = Assignment.query.all()
-    return render_template("teacher_dashboard.html", teacher=teacher, assignments=assignments)
+    return render_template("teacher_dashboard.html", assignments=assignments)
 
 
 @app.route("/teacher/upload", methods=["POST"])
@@ -255,17 +214,22 @@ def teacher_upload():
         return redirect(url_for("teacher_login"))
 
     file = request.files["file"]
-    filename = f"{uuid.uuid4().hex}_{secure_filename(file.filename)}"
-    file.save(os.path.join(UPLOAD_FOLDER, filename))
+
+    result = cloudinary.uploader.upload(
+        file,
+        folder="assignments",
+        resource_type="raw"
+    )
 
     a = Assignment(
         title=request.form["title"],
-        filename=filename,
+        file_url=result["secure_url"],
         year=request.form["year"],
         branch=request.form["branch"],
         section=request.form["section"],
         due_date=request.form["due_date"]
     )
+
     db.session.add(a)
     db.session.commit()
     return redirect(url_for("teacher_dashboard"))
@@ -283,6 +247,7 @@ def teacher_submissions(assignment_id):
 
     submissions = Submission.query.filter_by(assignment_id=assignment_id).all()
     assignment = Assignment.query.get(assignment_id)
+
     return render_template(
         "teacher_submissions.html",
         submissions=submissions,
@@ -290,53 +255,12 @@ def teacher_submissions(assignment_id):
     )
 
 
-@app.route("/teacher/pending/<int:assignment_id>")
-def teacher_pending(assignment_id):
-    assignment = Assignment.query.get(assignment_id)
-
-    students = Student.query.filter_by(
-        year=assignment.year,
-        branch=assignment.branch,
-        section=assignment.section
-    ).all()
-
-    submitted_ids = [
-        s.student_id for s in Submission.query.filter_by(assignment_id=assignment_id).all()
-    ]
-
-    pending = [s for s in students if s.id not in submitted_ids]
-    return render_template("teacher_pending.html", students=pending, assignment=assignment)
-
-
 @app.route("/teacher/logout")
 def teacher_logout():
     session.clear()
     return redirect(url_for("teacher_login"))
 
-# ================= DOWNLOAD =================
-@app.route("/download/assignment/<filename>")
-def download_assignment(filename):
-    return send_from_directory(UPLOAD_FOLDER, filename, as_attachment=True)
-
-
-@app.route("/download/submission/<path:filename>")
-def download_submission(filename):
-
-    if "student_id" not in session and "teacher_id" not in session:
-        abort(403)
-
-    file_path = os.path.join(SUBMISSION_FOLDER, filename)
-
-    if not os.path.isfile(file_path):
-        abort(404)
-
-    return send_from_directory(
-        SUBMISSION_FOLDER,
-        filename,
-        as_attachment=True
-    )
-
-# ---------------- STARTUP ----------------
+# ---------------- START ----------------
 with app.app_context():
     db.create_all()
     print("✅ DATABASE READY")
