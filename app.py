@@ -328,16 +328,21 @@ def teacher_pending(assignment_id):
 def download_assignment(filename):
     return send_from_directory(UPLOAD_FOLDER, filename, as_attachment=True)
 
-@app.route("/download/submission/<filename>", endpoint="download_submission")
+@app.route("/download/submission/<path:filename>", endpoint="download_submission")
 def download_submission(filename):
-    path = os.path.join(SUBMISSION_FOLDER, filename)
+    if "student_id" not in session and "teacher_id" not in session:
+        abort(403)
 
-    if not os.path.exists(path):
-        return "File not found on server", 404
+    file_path = os.path.join(SUBMISSION_FOLDER, filename)
 
-    return send_from_directory(SUBMISSION_FOLDER, filename, as_attachment=True)
+    if not os.path.exists(file_path):
+        abort(404)
 
-
+    return send_from_directory(
+        SUBMISSION_FOLDER,
+        filename,
+        as_attachment=True
+    )
 
 
 # ---------------- RUN ----------------

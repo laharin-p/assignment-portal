@@ -27,10 +27,11 @@
             <td>{{ s.student.rollno }}</td>
 
             <td>
-                <a href="{{ url_for('download_submission', filename=s.filename) }}">
-                   class="btn btn-sm btn-primary">
-                    Download
-                </a>
+                <a href="{{ url_for('download_submission', filename=s.filename) }}"
+   class="btn btn-sm btn-primary">
+   Download
+</a>
+
             </td>
 
             <td>{{ s.plagiarism }}%</td>
