@@ -108,32 +108,45 @@ def student_register():
 @app.route("/student/login", methods=["GET", "POST"])
 def student_login():
     if request.method == "POST":
-        student = Student.query.filter_by(email=request.form["email"]).first()
-        if student and check_password_hash(student.password, request.form["password"]):
-            session.clear()
-            session["student_id"] = student.id
-            return redirect(url_for("student_dashboard"))
+        rollno = request.form["rollno"]
+        password = request.form["password"]
+
+        student = Student.query.filter_by(rollno=rollno).first()
+
+        if student and check_password_hash(student.password, password):
+            session["student_id"] = student.id   # 🔥 REQUIRED
+            return redirect("/student/dashboard")
+
         return render_template("student_login.html", error="Invalid credentials")
+
     return render_template("student_login.html")
 
 
 @app.route("/student/dashboard")
 def student_dashboard():
     if "student_id" not in session:
-        return redirect(url_for("student_login"))
+        return redirect("/student/login")
 
-    assignments = Assignment.query.all()
+    student = Student.query.get(session["student_id"])
+
+    assignments = Assignment.query.filter_by(
+        year=student.year,
+        branch=student.branch,
+        section=student.section
+    ).all()
+
     submissions = Submission.query.filter_by(
-        student_id=session["student_id"]
+        student_id=student.id
     ).all()
 
     return render_template(
         "student_dashboard.html",
         assignments=assignments,
         submissions=submissions,
-        today=datetime.today(),
+        today=date.today(),
         datetime=datetime
     )
+
 
 
 @app.route("/student/submit/<int:assignment_id>", methods=["POST"])
