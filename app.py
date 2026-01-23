@@ -219,6 +219,19 @@ def teacher_upload():
     db.session.add(assignment)
     db.session.commit()
     return redirect(url_for("teacher_dashboard"))
+@app.route("/teacher/submissions/<int:assignment_id>")
+def teacher_submissions(assignment_id):
+    if "teacher_id" not in session:
+        return redirect(url_for("teacher_login"))
+
+    assignment = Assignment.query.get_or_404(assignment_id)
+    submissions = Submission.query.filter_by(assignment_id=assignment_id).all()
+
+    return render_template(
+        "teacher_submissions.html",
+        assignment=assignment,
+        submissions=submissions
+    )
 
 
 @app.route("/teacher/logout")

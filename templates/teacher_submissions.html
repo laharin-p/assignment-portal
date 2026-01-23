@@ -13,20 +13,27 @@
     <table class="table table-bordered table-hover">
         <thead class="table-dark">
             <tr>
-                <th>Student Roll No</th>
+                <th>Student Name</th>
                 <th>File</th>
                 <th>Plagiarism %</th>
-                <th>Marks</th>
-                <th>Action</th>
+                <th>Status</th>
             </tr>
         </thead>
         <tbody>
 
         {% for s in submissions %}
-        <tr>
-            <td>{{ s.student.rollno }}</td>
+        <tr class="
+            {% if s.plagiarism_score > 40 %}
+                table-danger
+            {% elif s.plagiarism_score > 20 %}
+                table-warning
+            {% else %}
+                table-success
+            {% endif %}
+        ">
+            <td>{{ s.student.name }}</td>
 
-            <!-- ✅ CLOUDINARY DOWNLOAD -->
+            <!-- CLOUDINARY FILE -->
             <td>
                 <a href="{{ s.file_url }}" 
                    target="_blank"
@@ -35,22 +42,23 @@
                 </a>
             </td>
 
-            <td>{{ s.plagiarism }}%</td>
-
-            <td>{{ s.marks if s.marks else "Not Given" }}</td>
+            <td>{{ s.plagiarism_score }}%</td>
 
             <td>
-                <form method="POST">
-                    <input type="hidden" name="submission_id" value="{{ s.id }}">
-                    <input type="number" name="marks" class="form-control mb-1" required>
-                    <button class="btn btn-success btn-sm">Save</button>
-                </form>
+                {% if s.plagiarism_score > 40 %}
+                    High Plagiarism
+                {% elif s.plagiarism_score > 20 %}
+                    Medium
+                {% else %}
+                    Clean
+                {% endif %}
             </td>
         </tr>
+
         {% else %}
         <tr>
-            <td colspan="5" class="text-center text-muted">
-                No submissions
+            <td colspan="4" class="text-center text-muted">
+                No submissions yet
             </td>
         </tr>
         {% endfor %}
@@ -58,7 +66,9 @@
         </tbody>
     </table>
 
-    <a href="/teacher/dashboard" class="btn btn-secondary">Back</a>
+    <a href="{{ url_for('teacher_dashboard') }}" class="btn btn-secondary">
+        Back
+    </a>
 </div>
 
 </body>
