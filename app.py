@@ -102,6 +102,32 @@ def teacher_dashboard():
         teacher=teacher,
         assignments=assignments
     )
+@app.route("/teacher/upload", methods=["POST"])
+def teacher_upload():
+    if "teacher_id" not in session:
+        return redirect(url_for("teacher_login"))
+
+    title = request.form.get("title")
+    file = request.files.get("file")
+
+    if not file or file.filename == "":
+        return "No file selected", 400
+
+    filename = secure_filename(file.filename)
+    unique_name = f"{uuid.uuid4()}_{filename}"
+    file.save(os.path.join(UPLOAD_FOLDER, unique_name))
+
+    assignment = Assignment(
+        title=title,
+        filename=unique_name,
+        teacher_id=session["teacher_id"]
+    )
+
+    db.session.add(assignment)
+    db.session.commit()
+
+    return redirect(url_for("teacher_dashboard"))
+
 @app.route("/teacher/logout")
 def teacher_logout():
     session.pop("teacher_id", None)
