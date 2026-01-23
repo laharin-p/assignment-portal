@@ -18,10 +18,7 @@ app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-key")
 logging.basicConfig(level=logging.INFO)
 
 # ---------------- DATABASE ----------------
-DATABASE_URL = os.environ.get("DATABASE_URL")
-
-if not DATABASE_URL:
-    DATABASE_URL = "sqlite:///assignment.db"
+DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///assignment.db")
 
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
@@ -32,10 +29,17 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db = SQLAlchemy(app)
 
 # ---------------- CLOUDINARY ----------------
+CLOUD_NAME = os.environ.get("CLOUD_NAME")
+API_KEY = os.environ.get("API_KEY")
+API_SECRET = os.environ.get("API_SECRET")
+
+if not all([CLOUD_NAME, API_KEY, API_SECRET]):
+    raise RuntimeError("❌ Cloudinary environment variables not set")
+
 cloudinary.config(
-    cloud_name=os.environ.get("CLOUD_NAME"),
-    api_key=os.environ.get("API_KEY"),
-    api_secret=os.environ.get("API_SECRET")
+    cloud_name=CLOUD_NAME,
+    api_key=API_KEY,
+    api_secret=API_SECRET
 )
 
 # ---------------- MODELS ----------------
@@ -61,7 +65,7 @@ class Student(db.Model):
 class Assignment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200), nullable=False)
-    due_date = db.Column(db.String(20), nullable=False)
+    due_date = db.Column(db.Date, nullable=False)
     year = db.Column(db.String(10), nullable=False)
     branch = db.Column(db.String(20), nullable=False)
     section = db.Column(db.String(10), nullable=False)
@@ -72,14 +76,12 @@ class Submission(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     student_id = db.Column(db.Integer, db.ForeignKey("student.id"))
     assignment_id = db.Column(db.Integer, db.ForeignKey("assignment.id"))
-    year = db.Column(db.String(10))
-    branch = db.Column(db.String(20))
-    section = db.Column(db.String(10))
-    file_url = db.Column(db.Text)
+    file_url = db.Column(db.Text, nullable=False)
     plagiarism = db.Column(db.Float, default=0)
     marks = db.Column(db.Integer)
 
     student = db.relationship("Student", backref="submissions")
+    assignment = db.relationship("Assignment", backref="submissions")
 
 # ---------------- HOME ----------------
 @app.route("/")
@@ -136,7 +138,7 @@ def student_dashboard():
     if "student_id" not in session:
         return redirect(url_for("student_login"))
 
-    student = Student.query.get(session["student_id"])
+    student = db.session.get(Student, session["student_id"])
     if not student:
         session.clear()
         return redirect(url_for("student_login"))
@@ -154,8 +156,7 @@ def student_dashboard():
         student=student,
         assignments=assignments,
         submissions=submissions,
-        today=date.today(),
-        datetime=datetime
+        today=date.today()
     )
 
 
@@ -173,7 +174,6 @@ def teacher_register():
             email=request.form["email"],
             password=generate_password_hash(request.form["password"])
         )
-
         db.session.add(teacher)
         db.session.commit()
         return redirect(url_for("teacher_login"))
@@ -201,12 +201,12 @@ def teacher_dashboard():
     if "teacher_id" not in session:
         return redirect(url_for("teacher_login"))
 
-    teacher = Teacher.query.get(session["teacher_id"])
+    teacher = db.session.get(Teacher, session["teacher_id"])
     if not teacher:
         session.clear()
         return redirect(url_for("teacher_login"))
 
-    assignments = Assignment.query.all()
+    assignments = Assignment.query.order_by(Assignment.id.desc()).all()
 
     return render_template(
         "teacher_dashboard.html",
@@ -214,8 +214,7 @@ def teacher_dashboard():
         assignments=assignments
     )
 
-
-# ================= CLOUDINARY UPLOAD =================
+# ================= ASSIGNMENT UPLOAD =================
 @app.route("/teacher/upload", methods=["POST"])
 def teacher_upload():
     if "teacher_id" not in session:
@@ -225,28 +224,23 @@ def teacher_upload():
     if not file:
         return redirect(url_for("teacher_dashboard"))
 
-    try:
-        result = cloudinary.uploader.upload(
-            file,
-            resource_type="raw",
-            folder="assignments"
-        )
+    upload = cloudinary.uploader.upload(
+        file,
+        resource_type="raw",
+        folder="assignments"
+    )
 
-        assignment = Assignment(
-            title=request.form["title"],
-            year=request.form["year"],
-            branch=request.form["branch"],
-            section=request.form["section"],
-            due_date=request.form["due_date"],
-            file_url=result["secure_url"]
-        )
+    assignment = Assignment(
+        title=request.form["title"],
+        year=request.form["year"],
+        branch=request.form["branch"],
+        section=request.form["section"],
+        due_date=datetime.strptime(request.form["due_date"], "%Y-%m-%d").date(),
+        file_url=upload["secure_url"]
+    )
 
-        db.session.add(assignment)
-        db.session.commit()
-
-    except Exception as e:
-        app.logger.error(f"Upload failed: {e}")
-        return "Upload failed", 500
+    db.session.add(assignment)
+    db.session.commit()
 
     return redirect(url_for("teacher_dashboard"))
 
@@ -279,5 +273,5 @@ with app.app_context():
 # ---------------- ERROR LOGGING ----------------
 @app.errorhandler(500)
 def internal_error(error):
-    app.logger.error(error)
+    app.logger.exception(error)
     return "Internal Server Error", 500
