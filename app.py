@@ -1,8 +1,10 @@
 
-from datetime import datetime, date
+
+
+    from datetime import datetime, date
 from flask import (
-    Flask, render_template, request, redirect,
-    session, url_for
+    Flask, render_template, request,
+    redirect, session, url_for
 )
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -29,17 +31,10 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db = SQLAlchemy(app)
 
 # ---------------- CLOUDINARY ----------------
-CLOUD_NAME = os.environ.get("CLOUD_NAME")
-API_KEY = os.environ.get("API_KEY")
-API_SECRET = os.environ.get("API_SECRET")
-
-if not all([CLOUD_NAME, API_KEY, API_SECRET]):
-    raise RuntimeError("❌ Cloudinary environment variables not set")
-
 cloudinary.config(
-    cloud_name=CLOUD_NAME,
-    api_key=API_KEY,
-    api_secret=API_SECRET
+    cloud_name=os.environ.get("CLOUDINARY_CLOUD_NAME"),
+    api_key=os.environ.get("CLOUDINARY_API_KEY"),
+    api_secret=os.environ.get("CLOUDINARY_API_SECRET"),
 )
 
 # ---------------- MODELS ----------------
@@ -80,44 +75,12 @@ class Submission(db.Model):
     plagiarism = db.Column(db.Float, default=0)
     marks = db.Column(db.Integer)
 
-    student = db.relationship("Student", backref="submissions")
-    assignment = db.relationship("Assignment", backref="submissions")
-
 # ---------------- HOME ----------------
 @app.route("/")
 def home():
     return redirect(url_for("student_login"))
 
 # ================= STUDENT =================
-@app.route("/student/register", methods=["GET", "POST"])
-def student_register():
-    if request.method == "POST":
-        data = request.form
-
-        if Student.query.filter_by(email=data["email"]).first():
-            return render_template("student_register.html", error="Email already exists")
-
-        if Student.query.filter_by(rollno=data["rollno"]).first():
-            return render_template("student_register.html", error="Roll number already exists")
-
-        student = Student(
-            name=data["name"],
-            rollno=data["rollno"],
-            branch=data["branch"],
-            year=data["year"],
-            section=data["section"],
-            phone=data["phone"],
-            email=data["email"],
-            password=generate_password_hash(data["password"])
-        )
-
-        db.session.add(student)
-        db.session.commit()
-        return redirect(url_for("student_login"))
-
-    return render_template("student_register.html")
-
-
 @app.route("/student/login", methods=["GET", "POST"])
 def student_login():
     if request.method == "POST":
@@ -128,7 +91,7 @@ def student_login():
             session["student_id"] = student.id
             return redirect(url_for("student_dashboard"))
 
-        return render_template("student_login.html", error="Invalid email or password")
+        return render_template("student_login.html", error="Invalid credentials")
 
     return render_template("student_login.html")
 
@@ -138,25 +101,17 @@ def student_dashboard():
     if "student_id" not in session:
         return redirect(url_for("student_login"))
 
-    student = db.session.get(Student, session["student_id"])
-    if not student:
-        session.clear()
-        return redirect(url_for("student_login"))
-
+    student = Student.query.get(session["student_id"])
     assignments = Assignment.query.filter_by(
         year=student.year,
         branch=student.branch,
         section=student.section
     ).all()
 
-    submissions = Submission.query.filter_by(student_id=student.id).all()
-
     return render_template(
         "student_dashboard.html",
         student=student,
-        assignments=assignments,
-        submissions=submissions,
-        today=date.today()
+        assignments=assignments
     )
 
 
@@ -166,21 +121,6 @@ def student_logout():
     return redirect(url_for("student_login"))
 
 # ================= TEACHER =================
-@app.route("/teacher/register", methods=["GET", "POST"])
-def teacher_register():
-    if request.method == "POST":
-        teacher = Teacher(
-            name=request.form["name"],
-            email=request.form["email"],
-            password=generate_password_hash(request.form["password"])
-        )
-        db.session.add(teacher)
-        db.session.commit()
-        return redirect(url_for("teacher_login"))
-
-    return render_template("teacher_register.html")
-
-
 @app.route("/teacher/login", methods=["GET", "POST"])
 def teacher_login():
     if request.method == "POST":
@@ -191,7 +131,7 @@ def teacher_login():
             session["teacher_id"] = teacher.id
             return redirect(url_for("teacher_dashboard"))
 
-        return render_template("teacher_login.html", error="Invalid email or password")
+        return render_template("teacher_login.html", error="Invalid credentials")
 
     return render_template("teacher_login.html")
 
@@ -201,67 +141,14 @@ def teacher_dashboard():
     if "teacher_id" not in session:
         return redirect(url_for("teacher_login"))
 
-    teacher = db.session.get(Teacher, session["teacher_id"])
-    if not teacher:
-        session.clear()
-        return redirect(url_for("teacher_login"))
+    teacher = Teacher.query.get(session["teacher_id"])
+    assignments = Assignment.query.order_by(Assignment.due_date.desc()).all()
 
-    assignments = Assignment.query.order_by(Assignment.id.desc()).all()
-
+    # ✅ FIX: pass teacher to template
     return render_template(
         "teacher_dashboard.html",
         teacher=teacher,
         assignments=assignments
-    )
-
-# ================= ASSIGNMENT UPLOAD =================
-@app.route("/teacher/upload", methods=["POST"])
-def teacher_upload():
-    if "teacher_id" not in session:
-        return redirect(url_for("teacher_login"))
-
-    file = request.files.get("file")
-
-    if not file or file.filename == "":
-        return "No file selected", 400
-
-    try:
-        result = cloudinary.uploader.upload(
-            file,
-            resource_type="raw",
-            folder="assignments"
-        )
-
-        assignment = Assignment(
-            title=request.form["title"],
-            year=request.form["year"],
-            branch=request.form["branch"],
-            section=request.form["section"],
-            due_date=request.form["due_date"],
-            file_url=result["secure_url"]
-        )
-
-        db.session.add(assignment)
-        db.session.commit()
-
-        return redirect(url_for("teacher_dashboard"))
-
-    except Exception as e:
-        app.logger.error(f"Cloudinary Upload Error: {e}")
-        return "Upload failed. Check server logs.", 500
-
-@app.route("/teacher/submissions/<int:assignment_id>")
-def teacher_submissions(assignment_id):
-    if "teacher_id" not in session:
-        return redirect(url_for("teacher_login"))
-
-    assignment = Assignment.query.get_or_404(assignment_id)
-    submissions = Submission.query.filter_by(assignment_id=assignment_id).all()
-
-    return render_template(
-        "teacher_submissions.html",
-        assignment=assignment,
-        submissions=submissions
     )
 
 
@@ -270,13 +157,6 @@ def teacher_logout():
     session.clear()
     return redirect(url_for("teacher_login"))
 
-# ---------------- DATABASE INIT ----------------
-with app.app_context():
-    db.create_all()
-    print("✅ DATABASE READY")
-
-# ---------------- ERROR LOGGING ----------------
-@app.errorhandler(500)
-def internal_error(error):
-    app.logger.exception(error)
-    return "Internal Server Error", 500
+# ---------------- RUN ----------------
+if __name__ == "__main__":
+    app.run(debug=True)
