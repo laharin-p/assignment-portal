@@ -69,7 +69,10 @@
             </div>
 
             <div class="col-md-4">
-                <input type="date" name="due_date" class="form-control" required>
+                <!-- prevent past dates -->
+                <input type="date" name="due_date" class="form-control"
+                       min="{{ current_date }}"
+                       required>
             </div>
 
             <div class="col-md-8">
@@ -108,7 +111,7 @@
 
                     <td>{{ a.branch }} {{ a.year }}-{{ a.section }}</td>
 
-                    <td>{{ a.due_date }}</td>
+                    <td>{{ a.due_date.strftime('%d-%m-%Y') }}</td>
 
                     <td>
                         {% if a.due_date < current_date %}

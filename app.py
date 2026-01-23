@@ -135,7 +135,7 @@ def student_dashboard():
         "student_dashboard.html",
         assignments=Assignment.query.all(),
         submissions=Submission.query.filter_by(student_id=session["student_id"]).all(),
-        current_date=datetime.now()   # ✅ FIX
+        current_date=date.today()   # ✅ FIX
     )
 
 @app.route("/student/submit/<int:assignment_id>", methods=["POST"])
@@ -240,7 +240,7 @@ def teacher_dashboard():
         teacher=Teacher.query.get(session["teacher_id"]),
         assignments=assignments,
         pending=pending,
-        current_date=datetime.now()   # ✅ FIX
+        current_date=date.today()   # ✅ FIX
     )
 
 # ✅ MISSING ROUTE FIXED
