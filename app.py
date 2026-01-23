@@ -72,6 +72,11 @@ def student_dashboard():
         return redirect("/student/login")
     assignments = Assignment.query.all()
     return render_template("student_dashboard.html", assignments=assignments)
+@app.route("/student/logout")
+def student_logout():
+    session.pop("student_id", None)
+    return redirect(url_for("student_login"))
+
 
 # -------- TEACHER --------
 @app.route("/teacher/login", methods=["GET","POST"])
@@ -97,6 +102,11 @@ def teacher_dashboard():
         teacher=teacher,
         assignments=assignments
     )
+@app.route("/teacher/logout")
+def teacher_logout():
+    session.pop("teacher_id", None)
+    return redirect(url_for("teacher_login"))
+
 
 # ---------------- START ----------------
 if __name__ == "__main__":
