@@ -103,7 +103,7 @@
                     View Submission
                 </a>
 
-                {% if a.due_date.date() >= current_date %}
+                {% if a.due_date >= current_date %}
                 <form method="POST" action="{{ url_for('delete_submission', submission_id=s.id) }}">
                     <button class="btn btn-sm btn-danger w-100">Delete & Re-upload</button>
                 </form>
