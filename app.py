@@ -12,12 +12,14 @@ import os
 
 # ---------------- APP SETUP ----------------
 app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY", "change-this-secret")
+app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-key")
 
 # ---------------- DATABASE ----------------
 DATABASE_URL = os.environ.get("DATABASE_URL")
+
+# ✅ LOCAL FALLBACK (VERY IMPORTANT)
 if not DATABASE_URL:
-    raise RuntimeError("DATABASE_URL is required")
+    DATABASE_URL = "sqlite:///assignment.db"
 
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
@@ -28,9 +30,9 @@ db = SQLAlchemy(app)
 
 # ---------------- CLOUDINARY ----------------
 cloudinary.config(
-    cloud_name=os.environ.get("CLOUD_NAME"),
-    api_key=os.environ.get("API_KEY"),
-    api_secret=os.environ.get("API_SECRET")
+    cloud_name=os.environ.get("CLOUD_NAME", ""),
+    api_key=os.environ.get("API_KEY", ""),
+    api_secret=os.environ.get("API_SECRET", "")
 )
 
 # ---------------- MODELS ----------------
@@ -51,6 +53,7 @@ class Student(db.Model):
     phone = db.Column(db.String(15), nullable=False)
     email = db.Column(db.String(100), unique=True, nullable=False)
     password = db.Column(db.String(200), nullable=False)
+
 
 class Assignment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -84,65 +87,47 @@ def home():
 @app.route("/student/register", methods=["GET", "POST"])
 def student_register():
     if request.method == "POST":
-        name = request.form.get("name")
-        rollno = request.form.get("rollno")
-        branch = request.form.get("branch")
-        year = request.form.get("year")
-        section = request.form.get("section")
-        phone = request.form.get("phone")
-        email = request.form.get("email")
-        password = request.form.get("password")
+        data = request.form
 
-        if not all([name, rollno, branch, year, section, phone, email, password]):
-            return render_template("student_register.html", error="All fields are required")
+        if Student.query.filter_by(email=data["email"]).first():
+            return render_template("student_register.html", error="Email already exists")
 
-        if Student.query.filter_by(email=email).first():
-            return render_template("student_register.html", error="Email already registered")
-
-        if Student.query.filter_by(rollno=rollno).first():
-            return render_template("student_register.html", error="Roll number already exists")
-
-        hashed_password = generate_password_hash(password)
+        if Student.query.filter_by(rollno=data["rollno"]).first():
+            return render_template("student_register.html", error="Roll number exists")
 
         student = Student(
-            name=name,
-            rollno=rollno,
-            branch=branch,
-            year=year,
-            section=section,
-            phone=phone,
-            email=email,
-            password=hashed_password
+            name=data["name"],
+            rollno=data["rollno"],
+            branch=data["branch"],
+            year=data["year"],
+            section=data["section"],
+            phone=data["phone"],
+            email=data["email"],
+            password=generate_password_hash(data["password"])
         )
 
         db.session.add(student)
         db.session.commit()
-
-        return redirect("/student/login")
+        return redirect(url_for("student_login"))
 
     return render_template("student_register.html")
-
 
 
 @app.route("/student/login", methods=["GET", "POST"])
 def student_login():
     if request.method == "POST":
-        email = request.form.get("email")
-        password = request.form.get("password")
+        student = Student.query.filter_by(
+            email=request.form["email"]
+        ).first()
 
-        if not email or not password:
-            return "Invalid form data", 400
-
-        student = Student.query.filter_by(email=email).first()
-
-        if student and check_password_hash(student.password, password):
+        if student and check_password_hash(student.password, request.form["password"]):
+            session.clear()
             session["student_id"] = student.id
-            return redirect("/student/dashboard")
+            return redirect(url_for("student_dashboard"))
 
-        return "Invalid email or password", 400
+        return render_template("student_login.html", error="Invalid login")
 
     return render_template("student_login.html")
-
 
 
 @app.route("/student/dashboard")
@@ -150,7 +135,7 @@ def student_dashboard():
     if "student_id" not in session:
         return redirect(url_for("student_login"))
 
-    student = Student.query.get(session["student_id"])
+    student = Student.query.get_or_404(session["student_id"])
 
     assignments = Assignment.query.filter_by(
         year=student.year,
@@ -162,46 +147,12 @@ def student_dashboard():
 
     return render_template(
         "student_dashboard.html",
+        student=student,
         assignments=assignments,
         submissions=submissions,
         today=date.today(),
         datetime=datetime
     )
-
-
-@app.route("/student/submit/<int:assignment_id>", methods=["POST"])
-def student_submit(assignment_id):
-    if "student_id" not in session:
-        return redirect(url_for("student_login"))
-
-    if "file" not in request.files:
-        abort(400)
-
-    file = request.files["file"]
-    if file.filename == "":
-        abort(400)
-
-    student = Student.query.get_or_404(session["student_id"])
-
-    result = cloudinary.uploader.upload(
-        file,
-        folder="submissions",
-        resource_type="raw"
-    )
-
-    sub = Submission(
-        student_id=student.id,
-        assignment_id=assignment_id,
-        year=student.year,
-        branch=student.branch,
-        section=student.section,
-        file_url=result["secure_url"]
-    )
-
-    db.session.add(sub)
-    db.session.commit()
-
-    return redirect(url_for("student_dashboard"))
 
 
 @app.route("/student/logout")
@@ -213,12 +164,12 @@ def student_logout():
 @app.route("/teacher/register", methods=["GET", "POST"])
 def teacher_register():
     if request.method == "POST":
-        t = Teacher(
+        teacher = Teacher(
             name=request.form["name"],
             email=request.form["email"],
             password=generate_password_hash(request.form["password"])
         )
-        db.session.add(t)
+        db.session.add(teacher)
         db.session.commit()
         return redirect(url_for("teacher_login"))
 
@@ -228,13 +179,16 @@ def teacher_register():
 @app.route("/teacher/login", methods=["GET", "POST"])
 def teacher_login():
     if request.method == "POST":
-        t = Teacher.query.filter_by(email=request.form["email"]).first()
-        if t and check_password_hash(t.password, request.form["password"]):
+        teacher = Teacher.query.filter_by(
+            email=request.form["email"]
+        ).first()
+
+        if teacher and check_password_hash(teacher.password, request.form["password"]):
             session.clear()
-            session["teacher_id"] = t.id
+            session["teacher_id"] = teacher.id
             return redirect(url_for("teacher_dashboard"))
 
-        return render_template("teacher_login.html", error="Invalid credentials")
+        return render_template("teacher_login.html", error="Invalid login")
 
     return render_template("teacher_login.html")
 
@@ -248,57 +202,6 @@ def teacher_dashboard():
     return render_template("teacher_dashboard.html", assignments=assignments)
 
 
-@app.route("/teacher/upload", methods=["POST"])
-def teacher_upload():
-    if "teacher_id" not in session:
-        return redirect(url_for("teacher_login"))
-
-    if "file" not in request.files:
-        abort(400)
-
-    file = request.files["file"]
-
-    result = cloudinary.uploader.upload(
-        file,
-        folder="assignments",
-        resource_type="raw"
-    )
-
-    a = Assignment(
-        title=request.form["title"],
-        file_url=result["secure_url"],
-        year=request.form["year"],
-        branch=request.form["branch"],
-        section=request.form["section"],
-        due_date=request.form["due_date"]
-    )
-
-    db.session.add(a)
-    db.session.commit()
-
-    return redirect(url_for("teacher_dashboard"))
-
-
-@app.route("/teacher/submissions/<int:assignment_id>", methods=["GET", "POST"])
-def teacher_submissions(assignment_id):
-    if "teacher_id" not in session:
-        return redirect(url_for("teacher_login"))
-
-    if request.method == "POST":
-        sub = Submission.query.get(request.form["submission_id"])
-        sub.marks = int(request.form["marks"])
-        db.session.commit()
-
-    submissions = Submission.query.filter_by(assignment_id=assignment_id).all()
-    assignment = Assignment.query.get(assignment_id)
-
-    return render_template(
-        "teacher_submissions.html",
-        submissions=submissions,
-        assignment=assignment
-    )
-
-
 @app.route("/teacher/logout")
 def teacher_logout():
     session.clear()
@@ -308,3 +211,6 @@ def teacher_logout():
 with app.app_context():
     db.create_all()
     print("✅ DATABASE READY")
+
+if __name__ == "__main__":
+    app.run(debug=True)
