@@ -40,7 +40,7 @@
             <tbody>
 
                 {% for a in assignments %}
-                {% set due = datetime.strptime(a.due_date, "%Y-%m-%d") %}
+                {% set due = datetime.strptime(a.due_date, "%Y-%m-%d").date() %}
                 {% set days_left = (due - today).days %}
 
                 <tr class="
@@ -76,8 +76,9 @@
                             <input type="file"
                                    name="file"
                                    class="form-control form-control-sm"
+                                   accept=".pdf,.doc,.docx"
                                    required>
-                            <button class="btn btn-primary btn-sm mt-2">
+                            <button type="submit" class="btn btn-primary btn-sm mt-2">
                                 Submit
                             </button>
                         </form>

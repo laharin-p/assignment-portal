@@ -1,5 +1,5 @@
 
-from datetime import datetime
+from datetime import datetime, date
 from flask import (
     Flask, render_template, request, redirect,
     session, url_for, abort
@@ -43,15 +43,14 @@ class Teacher(db.Model):
 
 class Student(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100))
-    rollno = db.Column(db.String(20), unique=True)
-    branch = db.Column(db.String(50))
-    year = db.Column(db.String(10))
-    section = db.Column(db.String(10))
-    phone = db.Column(db.String(15))
-    email = db.Column(db.String(100), unique=True)
-    password = db.Column(db.String(200))
-
+    name = db.Column(db.String(100), nullable=False)
+    rollno = db.Column(db.String(50), unique=True, nullable=False)
+    branch = db.Column(db.String(20), nullable=False)
+    year = db.Column(db.String(10), nullable=False)
+    section = db.Column(db.String(10), nullable=False)
+    phone = db.Column(db.String(15), nullable=False)
+    email = db.Column(db.String(100), unique=True, nullable=False)
+    password = db.Column(db.String(200), nullable=False)
 
 class Assignment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -85,47 +84,71 @@ def home():
 @app.route("/student/register", methods=["GET", "POST"])
 def student_register():
     if request.method == "POST":
-        if Student.query.filter_by(email=request.form["email"]).first():
-            return render_template("student_register.html", error="Email already exists")
+        name = request.form.get("name")
+        rollno = request.form.get("rollno")
+        branch = request.form.get("branch")
+        year = request.form.get("year")
+        section = request.form.get("section")
+        phone = request.form.get("phone")
+        email = request.form.get("email")
+        password = request.form.get("password")
 
-        s = Student(
-            name=request.form["name"],
-            rollno=request.form["rollno"],
-            branch=request.form["branch"],
-            year=request.form["year"],
-            section=request.form["section"],
-            phone=request.form["phone"],
-            email=request.form["email"],
-            password=generate_password_hash(request.form["password"])
+        if not all([name, rollno, branch, year, section, phone, email, password]):
+            return render_template("student_register.html", error="All fields are required")
+
+        if Student.query.filter_by(email=email).first():
+            return render_template("student_register.html", error="Email already registered")
+
+        if Student.query.filter_by(rollno=rollno).first():
+            return render_template("student_register.html", error="Roll number already exists")
+
+        hashed_password = generate_password_hash(password)
+
+        student = Student(
+            name=name,
+            rollno=rollno,
+            branch=branch,
+            year=year,
+            section=section,
+            phone=phone,
+            email=email,
+            password=hashed_password
         )
-        db.session.add(s)
+
+        db.session.add(student)
         db.session.commit()
-        return redirect(url_for("student_login"))
+
+        return redirect("/student/login")
 
     return render_template("student_register.html")
+
 
 
 @app.route("/student/login", methods=["GET", "POST"])
 def student_login():
     if request.method == "POST":
-        rollno = request.form["rollno"]
-        password = request.form["password"]
+        email = request.form.get("email")
+        password = request.form.get("password")
 
-        student = Student.query.filter_by(rollno=rollno).first()
+        if not email or not password:
+            return "Invalid form data", 400
+
+        student = Student.query.filter_by(email=email).first()
 
         if student and check_password_hash(student.password, password):
-            session["student_id"] = student.id   # 🔥 REQUIRED
+            session["student_id"] = student.id
             return redirect("/student/dashboard")
 
-        return render_template("student_login.html", error="Invalid credentials")
+        return "Invalid email or password", 400
 
     return render_template("student_login.html")
+
 
 
 @app.route("/student/dashboard")
 def student_dashboard():
     if "student_id" not in session:
-        return redirect("/student/login")
+        return redirect(url_for("student_login"))
 
     student = Student.query.get(session["student_id"])
 
@@ -135,9 +158,7 @@ def student_dashboard():
         section=student.section
     ).all()
 
-    submissions = Submission.query.filter_by(
-        student_id=student.id
-    ).all()
+    submissions = Submission.query.filter_by(student_id=student.id).all()
 
     return render_template(
         "student_dashboard.html",
@@ -148,14 +169,16 @@ def student_dashboard():
     )
 
 
-
 @app.route("/student/submit/<int:assignment_id>", methods=["POST"])
 def student_submit(assignment_id):
     if "student_id" not in session:
         return redirect(url_for("student_login"))
 
-    file = request.files.get("file")
-    if not file:
+    if "file" not in request.files:
+        abort(400)
+
+    file = request.files["file"]
+    if file.filename == "":
         abort(400)
 
     student = Student.query.get_or_404(session["student_id"])
@@ -177,6 +200,7 @@ def student_submit(assignment_id):
 
     db.session.add(sub)
     db.session.commit()
+
     return redirect(url_for("student_dashboard"))
 
 
@@ -197,6 +221,7 @@ def teacher_register():
         db.session.add(t)
         db.session.commit()
         return redirect(url_for("teacher_login"))
+
     return render_template("teacher_register.html")
 
 
@@ -208,7 +233,9 @@ def teacher_login():
             session.clear()
             session["teacher_id"] = t.id
             return redirect(url_for("teacher_dashboard"))
+
         return render_template("teacher_login.html", error="Invalid credentials")
+
     return render_template("teacher_login.html")
 
 
@@ -225,6 +252,9 @@ def teacher_dashboard():
 def teacher_upload():
     if "teacher_id" not in session:
         return redirect(url_for("teacher_login"))
+
+    if "file" not in request.files:
+        abort(400)
 
     file = request.files["file"]
 
@@ -245,6 +275,7 @@ def teacher_upload():
 
     db.session.add(a)
     db.session.commit()
+
     return redirect(url_for("teacher_dashboard"))
 
 
