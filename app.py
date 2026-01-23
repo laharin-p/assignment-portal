@@ -3,7 +3,7 @@
 
 from flask import Flask, render_template, request, redirect, session, url_for
 from flask_sqlalchemy import SQLAlchemy
-from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.security import generate_password_hash, check_password_hash, secure_filename
 import cloudinary, cloudinary.uploader
 import os
 from datetime import date
@@ -107,20 +107,34 @@ def teacher_upload():
     if "teacher_id" not in session:
         return redirect(url_for("teacher_login"))
 
-    title = request.form.get("title")
-    file = request.files.get("file")
+    title = request.form["title"]
+    year = request.form["year"]
+    branch = request.form["branch"]
+    section = request.form["section"]
+    due_date = request.form["due_date"]
+    file = request.files["file"]
 
-    if not file or file.filename == "":
-        return "No file selected", 400
+    if not file:
+        return "No file uploaded", 400
 
-    filename = secure_filename(file.filename)
-    unique_name = f"{uuid.uuid4()}_{filename}"
-    file.save(os.path.join(UPLOAD_FOLDER, unique_name))
+    # 🔐 sanitize filename (even though Cloudinary is used)
+    secure_filename(file.filename)
+
+    # ☁️ Upload to Cloudinary
+    upload_result = cloudinary.uploader.upload(
+        file,
+        resource_type="raw"
+    )
+
+    file_url = upload_result["secure_url"]
 
     assignment = Assignment(
         title=title,
-        filename=unique_name,
-        teacher_id=session["teacher_id"]
+        year=year,
+        branch=branch,
+        section=section,
+        due_date=due_date,
+        file_url=file_url
     )
 
     db.session.add(assignment)
@@ -128,6 +142,8 @@ def teacher_upload():
 
     return redirect(url_for("teacher_dashboard"))
 
+
+    
 @app.route("/teacher/logout")
 def teacher_logout():
     session.pop("teacher_id", None)
