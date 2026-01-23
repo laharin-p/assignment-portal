@@ -36,34 +36,25 @@
               class="row g-3">
 
             <div class="col-md-6">
-                <input type="text"
-                       name="title"
-                       class="form-control"
-                       placeholder="Assignment Title"
-                       required>
+                <input type="text" name="title" class="form-control"
+                       placeholder="Assignment Title" required>
             </div>
 
             <div class="col-md-2">
                 <select name="year" class="form-select" required>
                     <option value="">Year</option>
-                    <option value="1">1</option>
-                    <option value="2">2</option>
-                    <option value="3">3</option>
-                    <option value="4">4</option>
+                    <option>1</option><option>2</option>
+                    <option>3</option><option>4</option>
                 </select>
             </div>
 
             <div class="col-md-2">
                 <select name="branch" class="form-select" required>
                     <option value="">Branch</option>
-                    <option>CSE</option>
-                    <option>ECE</option>
-                    <option>EEE</option>
-                    <option>AIDS</option>
-                    <option>CSM</option>
-                    <option>CSE-DS</option>
-                    <option>MECH</option>
-                    <option>CIVIL</option>
+                    <option>CSE</option><option>ECE</option>
+                    <option>EEE</option><option>AIDS</option>
+                    <option>CSM</option><option>CSE-DS</option>
+                    <option>MECH</option><option>CIVIL</option>
                     <option>IT</option>
                 </select>
             </div>
@@ -71,26 +62,20 @@
             <div class="col-md-2">
                 <select name="section" class="form-select" required>
                     <option value="">Section</option>
-                    <option>A</option>
-                    <option>B</option>
-                    <option>C</option>
-                    <option>D</option>
+                    <option>A</option><option>B</option>
+                    <option>C</option><option>D</option>
                     <option>E</option>
                 </select>
             </div>
 
             <div class="col-md-4">
-                <input type="date"
-                       name="due_date"
-                       class="form-control"
-                       required>
+                <input type="date" name="due_date"
+                       class="form-control" required>
             </div>
 
             <div class="col-md-8">
-                <input type="file"
-                       name="file"
-                       class="form-control"
-                       required>
+                <input type="file" name="file"
+                       class="form-control" required>
             </div>
 
             <div class="col-md-12">
@@ -112,17 +97,29 @@
                     <th>Title</th>
                     <th>Class</th>
                     <th>Due Date</th>
-                    <th>Download</th>
+                    <th>Status</th>
+                    <th>File</th>
                     <th>Actions</th>
                 </tr>
             </thead>
 
             <tbody>
                 {% for a in assignments %}
-                <tr>
+                <tr class="{% if a.due_date < today %}table-danger{% else %}table-success{% endif %}">
                     <td>{{ a.title }}</td>
+
                     <td>{{ a.branch }} {{ a.year }}-{{ a.section }}</td>
+
                     <td>{{ a.due_date }}</td>
+
+                    <td>
+                        {% if a.due_date < today %}
+                            <span class="badge bg-danger">Closed</span>
+                        {% else %}
+                            <span class="badge bg-success">Open</span>
+                        {% endif %}
+                    </td>
+
                     <td>
                         <a href="{{ a.file_url }}"
                            target="_blank"
@@ -130,6 +127,7 @@
                             Download
                         </a>
                     </td>
+
                     <td>
                         <a href="{{ url_for('teacher_submissions', assignment_id=a.id) }}"
                            class="btn btn-info btn-sm">
@@ -139,8 +137,8 @@
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="5" class="text-center text-muted">
-                        No assignments found
+                    <td colspan="6" class="text-center text-muted">
+                        No assignments uploaded yet
                     </td>
                 </tr>
                 {% endfor %}
