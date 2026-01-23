@@ -1,167 +1,53 @@
 
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
     <title>Student Dashboard</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 
 <body class="bg-light">
 
-<!-- NAVBAR -->
 <nav class="navbar navbar-dark bg-dark px-4">
     <span class="navbar-brand">Student Dashboard</span>
     <a href="{{ url_for('student_logout') }}" class="btn btn-danger btn-sm">Logout</a>
 </nav>
 
-<!-- 🔔 MESSAGE AFTER SUBMISSION -->
-{% if msg %}
-<div class="alert alert-info text-center fw-bold m-3">
-    {{ msg }}
-</div>
-{% endif %}
-
 <div class="container mt-4">
 
-    <!-- 📘 AVAILABLE ASSIGNMENTS -->
-    <div class="card shadow p-4 mb-4">
-        <h4 class="mb-3">Available Assignments</h4>
+    <h4 class="mb-3">Available Assignments</h4>
 
-        <table class="table table-bordered table-hover align-middle">
-            <thead class="table-dark">
-                <tr>
-                    <th>Title</th>
-                    <th>Due Date</th>
-                    <th>Download</th>
-                    <th>Submit</th>
-                </tr>
-            </thead>
-            <tbody>
+    <table class="table table-bordered table-hover">
+        <thead class="table-dark">
+            <tr>
+                <th>Title</th>
+                <th>Class</th>
+                <th>Due Date</th>
+                <th>Download</th>
+            </tr>
+        </thead>
 
-                {% for a in assignments %}
-                {% set due = datetime.strptime(a.due_date, "%Y-%m-%d").date() %}
-                {% set days_left = (due - today).days %}
-
-                <tr class="
-                    {% if days_left <= 2 %}
-                        table-danger
-                    {% elif days_left <= 5 %}
-                        table-warning
-                    {% endif %}
-                ">
-                    <td>{{ a.title }}</td>
-
-                    <td>
-                        {{ a.due_date }}
-                        {% if days_left <= 2 %}
-                            <span class="badge bg-danger ms-2">Due Soon</span>
-                        {% elif days_left <= 5 %}
-                            <span class="badge bg-warning text-dark ms-2">Upcoming</span>
-                        {% endif %}
-                    </td>
-
-                    <!-- ✅ CLOUDINARY ASSIGNMENT DOWNLOAD -->
-                    <td>
-                        <a href="{{ a.file_url }}" target="_blank"
-                           class="btn btn-success btn-sm">
-                            Download
-                        </a>
-                    </td>
-
-                    <td>
-                        <form method="POST"
-                              action="{{ url_for('student_submit', assignment_id=a.id) }}"
-                              enctype="multipart/form-data">
-                            <input type="file"
-                                   name="file"
-                                   class="form-control form-control-sm"
-                                   accept=".pdf,.doc,.docx"
-                                   required>
-                            <button type="submit" class="btn btn-primary btn-sm mt-2">
-                                Submit
-                            </button>
-                        </form>
-                    </td>
-                </tr>
-
-                {% else %}
-                <tr>
-                    <td colspan="4" class="text-center text-muted">
-                        No assignments available
-                    </td>
-                </tr>
-                {% endfor %}
-
-            </tbody>
-        </table>
-    </div>
-
-    <!-- 📄 MY SUBMISSIONS -->
-    <div class="card shadow p-4">
-        <h4 class="mb-3">My Submissions</h4>
-
-        <table class="table table-bordered table-hover align-middle">
-            <thead class="table-dark">
-                <tr>
-                    <th>Assignment ID</th>
-                    <th>File</th>
-                    <th>Marks</th>
-                    <th>Plagiarism</th>
-                </tr>
-            </thead>
-            <tbody>
-
-                {% for s in submissions %}
-                <tr>
-                    <td>{{ s.assignment_id }}</td>
-
-                    <!-- ✅ CLOUDINARY SUBMISSION DOWNLOAD -->
-                    <td>
-                        <a href="{{ s.file_url }}" target="_blank"
-                           class="btn btn-secondary btn-sm">
-                            Download
-                        </a>
-                    </td>
-
-                    <td>
-                        {% if s.marks is none %}
-                            <span class="text-warning">Not Evaluated</span>
-                        {% elif s.marks >= 3 %}
-                            <span class="text-success">Pass</span>
-                        {% else %}
-                            <span class="text-danger">Fail</span>
-                        {% endif %}
-                    </td>
-
-                    <td>
-                        {% if s.plagiarism >= 70 %}
-                            <span class="badge bg-danger">
-                                ⚠ {{ s.plagiarism }}% Plagiarism
-                            </span>
-                        {% elif s.plagiarism >= 40 %}
-                            <span class="badge bg-warning text-dark">
-                                {{ s.plagiarism }}% Similar
-                            </span>
-                        {% else %}
-                            <span class="badge bg-success">
-                                {{ s.plagiarism }}% Unique
-                            </span>
-                        {% endif %}
-                    </td>
-                </tr>
-
-                {% else %}
-                <tr>
-                    <td colspan="4" class="text-center text-muted">
-                        No submissions yet
-                    </td>
-                </tr>
-                {% endfor %}
-
-            </tbody>
-        </table>
-    </div>
+        <tbody>
+            {% for a in assignments %}
+            <tr>
+                <td>{{ a.title }}</td>
+                <td>{{ a.branch }} {{ a.year }}-{{ a.section }}</td>
+                <td>{{ a.due_date.strftime("%d-%m-%Y") }}</td>
+                <td>
+                    <a href="{{ a.file_url }}" target="_blank" class="btn btn-success btn-sm">
+                        Download
+                    </a>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="4" class="text-center text-muted">
+                    No assignments available
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
 
 </div>
 
