@@ -140,7 +140,7 @@ def student_logout():
 
 
 # ---------------- STUDENT SUBMISSION ----------------
- @app.route("/student/submit/<int:assignment_id>", methods=["POST"])
+@app.route("/student/submit/<int:assignment_id>", methods=["POST"])
 def submit_assignment(assignment_id):
     if "student_id" not in session:
         return redirect(url_for("student_login"))
