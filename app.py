@@ -9,16 +9,23 @@ import cloudinary, cloudinary.uploader
 import os
 from datetime import datetime
 
+# ---------------- APP ----------------
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "fallback-secret")
 
 # ---------------- DATABASE ----------------
 DATABASE_URL = os.environ.get("DATABASE_URL")
+
+if not DATABASE_URL:
+    raise RuntimeError("DATABASE_URL is not set")
+
+# Fix Render postgres:// issue
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
 app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
 db = SQLAlchemy(app)
 
 # ---------------- CLOUDINARY ----------------
@@ -31,27 +38,34 @@ cloudinary.config(
 
 # ---------------- MODELS ----------------
 class Teacher(db.Model):
+    __tablename__ = "teacher"
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100))
-    email = db.Column(db.String(100), unique=True)
-    password = db.Column(db.String(200))
+    name = db.Column(db.String(100), nullable=False)
+    email = db.Column(db.String(100), unique=True, nullable=False)
+    password = db.Column(db.String(200), nullable=False)
 
 
 class Student(db.Model):
+    __tablename__ = "student"
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100))
-    email = db.Column(db.String(100), unique=True)
-    password = db.Column(db.String(200))
+    name = db.Column(db.String(100), nullable=False)
+    email = db.Column(db.String(100), unique=True, nullable=False)
+    password = db.Column(db.String(200), nullable=False)
 
 
 class Assignment(db.Model):
+    __tablename__ = "assignment"
     id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(200))
+    title = db.Column(db.String(200), nullable=False)
     year = db.Column(db.String(20))
     branch = db.Column(db.String(50))
     section = db.Column(db.String(20))
     due_date = db.Column(db.Date)
     file_url = db.Column(db.String(500))
+
+# ---------------- CREATE TABLES ----------------
+with app.app_context():
+    db.create_all()
 
 # ---------------- ROUTES ----------------
 @app.route("/")
@@ -103,7 +117,11 @@ def teacher_dashboard():
         return redirect("/teacher/login")
     teacher = Teacher.query.get(session["teacher_id"])
     assignments = Assignment.query.all()
-    return render_template("teacher_dashboard.html", teacher=teacher, assignments=assignments)
+    return render_template(
+        "teacher_dashboard.html",
+        teacher=teacher,
+        assignments=assignments
+    )
 
 
 @app.route("/teacher/upload", methods=["POST"])
