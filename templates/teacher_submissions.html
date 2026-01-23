@@ -1,63 +1,104 @@
 
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
     <title>Student Submissions</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
+
 <body class="bg-light">
 
 <div class="container mt-4">
+
     <h3 class="mb-3">Student Submissions</h3>
 
-    <table class="table table-bordered table-hover">
+    <table class="table table-bordered table-hover align-middle">
         <thead class="table-dark">
             <tr>
                 <th>Student Name</th>
                 <th>File</th>
                 <th>Plagiarism %</th>
-                <th>Status</th>
+                <th>Marks ( /5 )</th>
+                <th>Result</th>
             </tr>
         </thead>
+
         <tbody>
 
         {% for s in submissions %}
         <tr class="
-            {% if s.plagiarism_score > 40 %}
+            {% if s.plagiarism_score is not none and s.plagiarism_score > 40 %}
                 table-danger
-            {% elif s.plagiarism_score > 20 %}
+            {% elif s.plagiarism_score is not none and s.plagiarism_score > 20 %}
                 table-warning
             {% else %}
                 table-success
             {% endif %}
         ">
+
+            <!-- 👨‍🎓 STUDENT -->
             <td>{{ s.student.name }}</td>
 
-            <!-- CLOUDINARY FILE -->
+            <!-- 📥 FILE -->
             <td>
-                <a href="{{ s.file_url }}" 
+                <a href="{{ s.file_url }}"
                    target="_blank"
                    class="btn btn-sm btn-primary">
-                   Download
+                    Download
                 </a>
             </td>
 
-            <td>{{ s.plagiarism_score }}%</td>
-
+            <!-- 🔍 PLAGIARISM -->
             <td>
-                {% if s.plagiarism_score > 40 %}
-                    High Plagiarism
-                {% elif s.plagiarism_score > 20 %}
-                    Medium
+                {% if s.plagiarism_score is not none %}
+                    {{ s.plagiarism_score }}%
                 {% else %}
-                    Clean
+                    N/A
                 {% endif %}
             </td>
+
+            <!-- 📝 MARKS -->
+            <td>
+                {% if s.marks is not none %}
+                    <span class="badge bg-dark">{{ s.marks }}/5</span>
+                {% else %}
+                    <form method="POST" action="{{ url_for('assign_marks', submission_id=s.id) }}">
+                        <input type="number"
+                               name="marks"
+                               min="0"
+                               max="5"
+                               class="form-control form-control-sm mb-1"
+                               required>
+                        <button class="btn btn-sm btn-success">
+                            Save
+                        </button>
+                    </form>
+                {% endif %}
+            </td>
+
+            <!-- 🎯 RESULT -->
+            <td>
+                {% if s.marks is not none %}
+                    {% if s.marks >= 3 %}
+                        <span class="badge bg-success">PASS</span>
+                    {% else %}
+                        <span class="badge bg-danger">FAIL</span>
+                    {% endif %}
+                {% else %}
+                    <span class="badge bg-warning text-dark">
+                        Pending Evaluation
+                    </span>
+                {% endif %}
+            </td>
+
         </tr>
 
         {% else %}
         <tr>
-            <td colspan="4" class="text-center text-muted">
+            <td colspan="5" class="text-center text-muted">
                 No submissions yet
             </td>
         </tr>
@@ -67,8 +108,9 @@
     </table>
 
     <a href="{{ url_for('teacher_dashboard') }}" class="btn btn-secondary">
-        Back
+        ⬅ Back to Dashboard
     </a>
+
 </div>
 
 </body>

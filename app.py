@@ -66,10 +66,10 @@ class Submission(db.Model):
     file_url = db.Column(db.String(500))
     submitted_on = db.Column(db.Date)
     plagiarism_score = db.Column(db.Float)
+    marks = db.Column(db.Float)   # 🔥 NEW (OUT OF 5)
 
     assignment = db.relationship("Assignment")
     student = db.relationship("Student")
-
 
 # ---------------- CREATE TABLES ----------------
 with app.app_context():
@@ -126,8 +126,9 @@ def student_dashboard():
         "student_dashboard.html",
         assignments=assignments,
         submissions=submission_map,
-        current_date=date.today()
+        today=date.today()
     )
+
 
 
 @app.route("/student/submit/<int:assignment_id>", methods=["POST"])
@@ -193,12 +194,23 @@ def teacher_dashboard():
     if "teacher_id" not in session:
         return redirect(url_for("teacher_login"))
 
+    assignments = Assignment.query.all()
+    students = Student.query.all()
+
+    pending = {}
+    for a in assignments:
+        submitted_ids = [
+            s.student_id for s in Submission.query.filter_by(assignment_id=a.id)
+        ]
+        pending[a.id] = [s for s in students if s.id not in submitted_ids]
+
     return render_template(
         "teacher_dashboard.html",
-        teacher=Teacher.query.get(session["teacher_id"]),
-        assignments=Assignment.query.all(),
-        today=date.today()   # 🔥 ADD THIS
+        assignments=assignments,
+        pending=pending,
+        today=date.today()
     )
+
 
 
 
@@ -219,19 +231,34 @@ def teacher_upload():
     db.session.add(assignment)
     db.session.commit()
     return redirect(url_for("teacher_dashboard"))
-@app.route("/teacher/submissions/<int:assignment_id>")
+@app.route("/teacher/submissions/<int:assignment_id>", methods=["GET", "POST"])
 def teacher_submissions(assignment_id):
     if "teacher_id" not in session:
         return redirect(url_for("teacher_login"))
 
     assignment = Assignment.query.get_or_404(assignment_id)
+
     submissions = Submission.query.filter_by(assignment_id=assignment_id).all()
+
+    # Handle marks submission
+    if request.method == "POST":
+        submission_id = request.form["submission_id"]
+        marks = float(request.form["marks"])
+
+        if marks > 5:
+            return "Marks cannot exceed 5", 400
+
+        sub = Submission.query.get(submission_id)
+        sub.marks = marks
+        db.session.commit()
+        return redirect(request.url)
 
     return render_template(
         "teacher_submissions.html",
         assignment=assignment,
         submissions=submissions
     )
+
 
 
 @app.route("/teacher/logout")
