@@ -140,22 +140,22 @@ def student_logout():
 
 
 # ---------------- STUDENT SUBMISSION ----------------
-@app.route("/student/submit/<int:assignment_id>", methods=["POST"])
+ @app.route("/student/submit/<int:assignment_id>", methods=["POST"])
 def submit_assignment(assignment_id):
     if "student_id" not in session:
         return redirect(url_for("student_login"))
 
-    file = request.files["file"]
-    upload = cloudinary.uploader.upload(file, resource_type="raw")
+    if "file" not in request.files:
+        flash("No file part", "danger")
+        return redirect(url_for("student_dashboard"))
 
-    # Delete old submission if exists
-    existing = Submission.query.filter_by(
-        student_id=session["student_id"],
-        assignment_id=assignment_id
-    ).first()
-    if existing:
-        db.session.delete(existing)
-        db.session.commit()
+    file = request.files["file"]
+
+    if file.filename == "":
+        flash("No file selected", "danger")
+        return redirect(url_for("student_dashboard"))
+
+    upload = cloudinary.uploader.upload(file, resource_type="raw")
 
     submission = Submission(
         student_id=session["student_id"],
@@ -164,9 +164,9 @@ def submit_assignment(assignment_id):
         submitted_on=date.today(),
         plagiarism_score=fake_plagiarism_check(file.filename)
     )
+
     db.session.add(submission)
     db.session.commit()
-
     return redirect(url_for("student_dashboard"))
 
 
