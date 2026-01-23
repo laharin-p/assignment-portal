@@ -8,7 +8,8 @@ from datetime import datetime, date
 
 # ---------------- APP ----------------
 app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY", "fallback-secret")
+app.secret_key = os.environ["SECRET_KEY"]
+
 
 # ---------------- DATABASE ----------------
 DATABASE_URL = os.environ.get("DATABASE_URL")
