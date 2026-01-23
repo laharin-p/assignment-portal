@@ -15,11 +15,9 @@ app.secret_key = os.environ.get("SECRET_KEY", "fallback-secret")
 
 # ---------------- DATABASE ----------------
 DATABASE_URL = os.environ.get("DATABASE_URL")
-
 if not DATABASE_URL:
     raise RuntimeError("DATABASE_URL is not set")
 
-# Fix Render postgres:// issue
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
@@ -72,7 +70,26 @@ with app.app_context():
 def home():
     return redirect("/student/login")
 
-# -------- STUDENT --------
+# ================= STUDENT =================
+@app.route("/student/register", methods=["GET", "POST"])
+def student_register():
+    if request.method == "POST":
+        name = request.form["name"]
+        email = request.form["email"]
+        password = generate_password_hash(request.form["password"])
+
+        if Student.query.filter_by(email=email).first():
+            return render_template("student_register.html", error="Email already exists")
+
+        student = Student(name=name, email=email, password=password)
+        db.session.add(student)
+        db.session.commit()
+
+        return redirect(url_for("student_login"))
+
+    return render_template("student_register.html")
+
+
 @app.route("/student/login", methods=["GET", "POST"])
 def student_login():
     if request.method == "POST":
@@ -98,7 +115,26 @@ def student_logout():
     session.pop("student_id", None)
     return redirect(url_for("student_login"))
 
-# -------- TEACHER --------
+# ================= TEACHER =================
+@app.route("/teacher/register", methods=["GET", "POST"])
+def teacher_register():
+    if request.method == "POST":
+        name = request.form["name"]
+        email = request.form["email"]
+        password = generate_password_hash(request.form["password"])
+
+        if Teacher.query.filter_by(email=email).first():
+            return render_template("teacher_register.html", error="Email already exists")
+
+        teacher = Teacher(name=name, email=email, password=password)
+        db.session.add(teacher)
+        db.session.commit()
+
+        return redirect(url_for("teacher_login"))
+
+    return render_template("teacher_register.html")
+
+
 @app.route("/teacher/login", methods=["GET", "POST"])
 def teacher_login():
     if request.method == "POST":
@@ -117,11 +153,7 @@ def teacher_dashboard():
         return redirect("/teacher/login")
     teacher = Teacher.query.get(session["teacher_id"])
     assignments = Assignment.query.all()
-    return render_template(
-        "teacher_dashboard.html",
-        teacher=teacher,
-        assignments=assignments
-    )
+    return render_template("teacher_dashboard.html", teacher=teacher, assignments=assignments)
 
 
 @app.route("/teacher/upload", methods=["POST"])
@@ -141,7 +173,7 @@ def teacher_upload():
 
     filename = secure_filename(file.filename)
 
-    upload_result = cloudinary.uploader.upload(
+    upload = cloudinary.uploader.upload(
         file,
         resource_type="raw",
         public_id=filename
@@ -153,7 +185,7 @@ def teacher_upload():
         branch=branch,
         section=section,
         due_date=due_date,
-        file_url=upload_result["secure_url"]
+        file_url=upload["secure_url"]
     )
 
     db.session.add(assignment)
@@ -166,7 +198,6 @@ def teacher_upload():
 def teacher_logout():
     session.pop("teacher_id", None)
     return redirect(url_for("teacher_login"))
-
 
 # ---------------- START ----------------
 if __name__ == "__main__":
