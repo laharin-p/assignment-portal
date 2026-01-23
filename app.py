@@ -196,8 +196,10 @@ def teacher_dashboard():
     return render_template(
         "teacher_dashboard.html",
         teacher=Teacher.query.get(session["teacher_id"]),
-        assignments=Assignment.query.all()
+        assignments=Assignment.query.all(),
+        today=date.today()   # 🔥 ADD THIS
     )
+
 
 
 @app.route("/teacher/upload", methods=["POST"])
