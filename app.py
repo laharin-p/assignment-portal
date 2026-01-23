@@ -210,7 +210,6 @@ def teacher_dashboard():
     )
 
 
-
 @app.route("/teacher/logout")
 def teacher_logout():
     session.clear()
