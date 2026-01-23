@@ -26,7 +26,7 @@
 
 {% for a in assignments %}
     {% set submission = submissions | selectattr("assignment_id", "equalto", a.id) | first %}
-    {% set expired = a.due_date.date() < current_date %}
+    {% set expired = a.due_date.date < current_date %}
 
     {% if not submission %}
     {% set shown = true %}
