@@ -200,8 +200,15 @@ def teacher_dashboard():
     if "teacher_id" not in session:
         return redirect(url_for("teacher_login"))
 
+    teacher = Teacher.query.get_or_404(session["teacher_id"])
     assignments = Assignment.query.all()
-    return render_template("teacher_dashboard.html", assignments=assignments)
+
+    return render_template(
+        "teacher_dashboard.html",
+        teacher=teacher,
+        assignments=assignments
+    )
+
 
 
 @app.route("/teacher/logout")
