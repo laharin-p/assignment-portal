@@ -5,160 +5,117 @@
     <meta charset="UTF-8">
     <title>Student Dashboard</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 
 <body class="bg-light">
 
-<!-- 🔝 NAVBAR -->
+<!-- NAVBAR -->
 <nav class="navbar navbar-dark bg-dark px-4">
-    <span class="navbar-brand">Student Dashboard</span>
+    <span class="navbar-brand fs-4">Student Dashboard</span>
+    <span class="text-white me-3">Hello, {{ session['student_name'] }}</span>
     <a href="{{ url_for('student_logout') }}" class="btn btn-danger btn-sm">Logout</a>
 </nav>
 
-<div class="container mt-4">
+<div class="container my-4">
 
-    <h4 class="mb-3">Available Assignments</h4>
-
-    <table class="table table-bordered table-hover align-middle">
-        <thead class="table-dark">
-            <tr>
-                <th>Title</th>
-                <th>Class</th>
-                <th>Due Date</th>
-                <th>Status</th>
-                <th>Assignment</th>
-                <th>Submission / Result</th>
-            </tr>
-        </thead>
-
-        <tbody>
+    <!-- AVAILABLE ASSIGNMENTS -->
+    <h4 class="mb-3">📄 Available Assignments</h4>
+    <div class="row">
         {% for a in assignments %}
-
-            {% set expired = a.due_date < current_date %}
             {% set submission = submissions.get(a.id) %}
-
-            <tr class="{% if expired %}table-danger{% else %}table-success{% endif %}">
-
-                <!-- 📘 TITLE -->
-                <td>{{ a.title }}</td>
-
-                <!-- 🎓 CLASS -->
-                <td>{{ a.branch }} {{ a.year }}-{{ a.section }}</td>
-
-                <!-- 📅 DUE DATE -->
-                <td>{{ a.due_date.strftime('%d-%m-%Y') }}</td>
-
-                <!-- ⏰ STATUS -->
-                <td>
-                    {% if expired %}
-                        <span class="badge bg-danger">Deadline Crossed</span>
-                    {% else %}
-                        <span class="badge bg-success">Open</span>
-                    {% endif %}
-                </td>
-
-                <!-- 📥 DOWNLOAD ASSIGNMENT -->
-                <td>
-                    <a href="{{ a.file_url }}" target="_blank" class="btn btn-sm btn-primary">
-                        Download
-                    </a>
-                </td>
-
-                <!-- 📤 SUBMISSION + RESULT -->
-                <td>
-
-                    {% if submission %}
-
-                        <!-- ✅ SUBMITTED -->
-                        <span class="badge bg-success mb-1">Submitted</span><br>
-
-                        <!-- 🔍 PLAGIARISM -->
-                        {% if submission.plagiarism_score is not none %}
-                            {% if submission.plagiarism_score > 30 %}
-                                <span class="badge bg-danger">
-                                    Plagiarism {{ submission.plagiarism_score }}%
-                                </span>
+            {% set expired = a.due_date < current_date %}
+            {% if not submission %}
+            <div class="col-md-6 mb-3">
+                <div class="card h-100 shadow-sm {% if expired %}border-danger{% else %}border-success{% endif %}">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ a.title }}</h5>
+                        <p class="card-text mb-1"><strong>Class:</strong> {{ a.branch }} {{ a.year }}-{{ a.section }}</p>
+                        <p class="card-text mb-1"><strong>Due Date:</strong> {{ a.due_date.strftime('%d-%m-%Y') }}</p>
+                        <p class="card-text mb-2">
+                            <strong>Status:</strong>
+                            {% if expired %}
+                                <span class="badge bg-danger">Deadline Crossed</span>
                             {% else %}
-                                <span class="badge bg-info">
-                                    Plagiarism {{ submission.plagiarism_score }}%
-                                </span>
+                                <span class="badge bg-success">Open</span>
                             {% endif %}
-                        {% else %}
-                            <span class="badge bg-secondary">Plagiarism Pending</span>
-                        {% endif %}
+                        </p>
+                        <a href="{{ a.file_url }}" target="_blank" class="btn btn-sm btn-primary mb-2">Download Assignment</a>
 
-                        <br><br>
-
-                        <!-- 📝 MARKS + PASS/FAIL -->
-                        {% if submission.marks is not none %}
-                            <span class="badge bg-dark">
-                                Marks: {{ submission.marks }}/5
-                            </span>
-
-                            {% if submission.marks >= 3 %}
-                                <span class="badge bg-success ms-1">PASS</span>
-                            {% else %}
-                                <span class="badge bg-danger ms-1">FAIL</span>
-                            {% endif %}
-                        {% else %}
-                            <span class="badge bg-warning text-dark">
-                                Marks Not Released
-                            </span>
-                        {% endif %}
-
-                        <br><br>
-
-                        <!-- 🗑️ DELETE (ONLY BEFORE DEADLINE) -->
                         {% if not expired %}
                         <form method="POST"
-                              action="{{ url_for('delete_submission', submission_id=submission.id) }}">
-                            <button class="btn btn-sm btn-danger">
-                                Delete & Re-upload
-                            </button>
+                              action="{{ url_for('submit_assignment', assignment_id=a.id) }}"
+                              enctype="multipart/form-data">
+                            <input type="file" name="file" class="form-control form-control-sm mb-2" required>
+                            <button type="submit" class="btn btn-sm btn-success w-100">Submit</button>
+                        </form>
+                        {% else %}
+                        <span class="text-danger fw-bold">Submission Closed</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        {% else %}
+            <p class="text-muted">No available assignments.</p>
+        {% endfor %}
+    </div>
+
+    <!-- SUBMITTED ASSIGNMENTS -->
+    <h4 class="mt-5 mb-3">✅ Submitted Assignments</h4>
+    <div class="row">
+        {% for a in assignments %}
+            {% set submission = submissions.get(a.id) %}
+            {% if submission %}
+            <div class="col-md-6 mb-3">
+                <div class="card h-100 shadow-sm border-info">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ a.title }}</h5>
+                        <p class="card-text mb-1"><strong>Class:</strong> {{ a.branch }} {{ a.year }}-{{ a.section }}</p>
+                        <p class="card-text mb-1"><strong>Due Date:</strong> {{ a.due_date.strftime('%d-%m-%Y') }}</p>
+
+                        <p class="card-text mb-1">
+                            <strong>Plagiarism:</strong>
+                            {% if submission.plagiarism_score is not none %}
+                                {% if submission.plagiarism_score > 30 %}
+                                    <span class="badge bg-danger">{{ submission.plagiarism_score }}%</span>
+                                {% else %}
+                                    <span class="badge bg-info">{{ submission.plagiarism_score }}%</span>
+                                {% endif %}
+                            {% else %}
+                                <span class="badge bg-secondary">Pending</span>
+                            {% endif %}
+                        </p>
+
+                        <p class="card-text mb-2">
+                            <strong>Marks:</strong>
+                            {% if submission.marks is not none %}
+                                {{ submission.marks }}/5
+                                {% if submission.marks >= 3 %}
+                                    <span class="badge bg-success ms-1">PASS</span>
+                                {% else %}
+                                    <span class="badge bg-danger ms-1">FAIL</span>
+                                {% endif %}
+                            {% else %}
+                                <span class="badge bg-warning text-dark">Not Released</span>
+                            {% endif %}
+                        </p>
+
+                        <a href="{{ submission.file_url }}" target="_blank" class="btn btn-sm btn-primary mb-2 w-100">View Submission</a>
+
+                        {% if a.due_date >= current_date %}
+                        <form method="POST" action="{{ url_for('delete_submission', submission_id=submission.id) }}">
+                            <button class="btn btn-sm btn-danger w-100">Delete & Re-upload</button>
                         </form>
                         {% endif %}
-
-                    {% else %}
-
-                        {% if expired %}
-                            <!-- ❌ DEADLINE OVER -->
-                            <span class="text-danger fw-bold">
-                                Submission Closed
-                            </span>
-                        {% else %}
-                            <!-- 📤 UPLOAD -->
-                            <form method="POST"
-                                  action="{{ url_for('submit_assignment', assignment_id=a.id) }}"
-                                  enctype="multipart/form-data">
-
-                                <input type="file"
-                                       name="file"
-                                       class="form-control form-control-sm mb-2"
-                                       required>
-
-                                <button type="submit"
-                                        class="btn btn-sm btn-success">
-                                    Submit
-                                </button>
-                            </form>
-                        {% endif %}
-
-                    {% endif %}
-
-                </td>
-            </tr>
-
+                    </div>
+                </div>
+            </div>
+            {% endif %}
         {% else %}
-            <tr>
-                <td colspan="6" class="text-center text-muted">
-                    No assignments available
-                </td>
-            </tr>
+            <p class="text-muted">No submissions yet.</p>
         {% endfor %}
-        </tbody>
-    </table>
+    </div>
 
 </div>
 
