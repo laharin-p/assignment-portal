@@ -221,29 +221,34 @@ def teacher_upload():
         return redirect(url_for("teacher_login"))
 
     file = request.files.get("file")
-    if not file:
+
+    if not file or file.filename == "":
+        return "No file selected", 400
+
+    try:
+        result = cloudinary.uploader.upload(
+            file,
+            resource_type="raw",
+            folder="assignments"
+        )
+
+        assignment = Assignment(
+            title=request.form["title"],
+            year=request.form["year"],
+            branch=request.form["branch"],
+            section=request.form["section"],
+            due_date=request.form["due_date"],
+            file_url=result["secure_url"]
+        )
+
+        db.session.add(assignment)
+        db.session.commit()
+
         return redirect(url_for("teacher_dashboard"))
 
-    upload = cloudinary.uploader.upload(
-        file,
-        resource_type="raw",
-        folder="assignments"
-    )
-
-    assignment = Assignment(
-        title=request.form["title"],
-        year=request.form["year"],
-        branch=request.form["branch"],
-        section=request.form["section"],
-        due_date=datetime.strptime(request.form["due_date"], "%Y-%m-%d").date(),
-        file_url=upload["secure_url"]
-    )
-
-    db.session.add(assignment)
-    db.session.commit()
-
-    return redirect(url_for("teacher_dashboard"))
-
+    except Exception as e:
+        app.logger.error(f"Cloudinary Upload Error: {e}")
+        return "Upload failed. Check server logs.", 500
 
 @app.route("/teacher/submissions/<int:assignment_id>")
 def teacher_submissions(assignment_id):
