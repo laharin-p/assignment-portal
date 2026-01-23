@@ -4,7 +4,6 @@
 from flask import Flask, render_template, request, redirect, session, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
-from werkzeug.utils import secure_filename
 import cloudinary, cloudinary.uploader
 import os
 from datetime import datetime, date
@@ -23,7 +22,6 @@ if DATABASE_URL.startswith("postgres://"):
 
 app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-
 db = SQLAlchemy(app)
 
 # ---------------- CLOUDINARY ----------------
@@ -44,6 +42,7 @@ class Teacher(db.Model):
 
 class Student(db.Model):
     id = db.Column(db.Integer, primary_key=True)
+    roll_no = db.Column(db.String(20), unique=True)  # Added roll number
     name = db.Column(db.String(100))
     email = db.Column(db.String(100), unique=True)
     password = db.Column(db.String(200))
@@ -71,24 +70,29 @@ class Submission(db.Model):
     assignment = db.relationship("Assignment")
     student = db.relationship("Student")
 
+
 # ---------------- CREATE TABLES ----------------
 with app.app_context():
     db.create_all()
 
+
 # ---------------- PLAGIARISM (DUMMY) ----------------
 def fake_plagiarism_check(filename):
-    return 12.5
+    return 12.5  # Dummy fixed score for now
+
 
 # ---------------- ROUTES ----------------
 @app.route("/")
 def home():
     return redirect("/student/login")
 
+
 # ================= STUDENT =================
 @app.route("/student/register", methods=["GET", "POST"])
 def student_register():
     if request.method == "POST":
         student = Student(
+            roll_no=request.form["roll_no"],
             name=request.form["name"],
             email=request.form["email"],
             password=generate_password_hash(request.form["password"])
@@ -106,7 +110,7 @@ def student_login():
         if s and check_password_hash(s.password, request.form["password"]):
             session.clear()
             session["student_id"] = s.id
-            return redirect("/student/dashboard")
+            return redirect(url_for("student_dashboard"))
         return render_template("student_login.html", error="Invalid login")
     return render_template("student_login.html")
 
@@ -116,6 +120,7 @@ def student_dashboard():
     if "student_id" not in session:
         return redirect(url_for("student_login"))
 
+    current_date = date.today()
     assignments = Assignment.query.all()
     submissions = Submission.query.filter_by(student_id=session["student_id"]).all()
     submission_map = {s.assignment_id: s for s in submissions}
@@ -124,13 +129,58 @@ def student_dashboard():
         "student_dashboard.html",
         assignments=assignments,
         submissions=submission_map,
-        today=date.today()
+        current_date=current_date
     )
+
 
 @app.route("/student/logout")
 def student_logout():
     session.clear()
     return redirect(url_for("student_login"))
+
+
+# ---------------- STUDENT SUBMISSION ----------------
+@app.route("/student/submit/<int:assignment_id>", methods=["POST"])
+def submit_assignment(assignment_id):
+    if "student_id" not in session:
+        return redirect(url_for("student_login"))
+
+    file = request.files["file"]
+    upload = cloudinary.uploader.upload(file, resource_type="raw")
+
+    # Delete old submission if exists
+    existing = Submission.query.filter_by(
+        student_id=session["student_id"],
+        assignment_id=assignment_id
+    ).first()
+    if existing:
+        db.session.delete(existing)
+        db.session.commit()
+
+    submission = Submission(
+        student_id=session["student_id"],
+        assignment_id=assignment_id,
+        file_url=upload["secure_url"],
+        submitted_on=date.today(),
+        plagiarism_score=fake_plagiarism_check(file.filename)
+    )
+    db.session.add(submission)
+    db.session.commit()
+
+    return redirect(url_for("student_dashboard"))
+
+
+@app.route("/student/delete/<int:submission_id>", methods=["POST"])
+def delete_submission(submission_id):
+    if "student_id" not in session:
+        return redirect(url_for("student_login"))
+
+    sub = Submission.query.get_or_404(submission_id)
+    if sub.assignment.due_date >= date.today():
+        db.session.delete(sub)
+        db.session.commit()
+    return redirect(url_for("student_dashboard"))
+
 
 # ================= TEACHER =================
 @app.route("/teacher/register", methods=["GET", "POST"])
@@ -165,7 +215,7 @@ def teacher_login():
         if t and check_password_hash(t.password, request.form["password"]):
             session.clear()
             session["teacher_id"] = t.id
-            return redirect("/teacher/dashboard")
+            return redirect(url_for("teacher_dashboard"))
     return render_template("teacher_login.html")
 
 
@@ -178,11 +228,10 @@ def teacher_dashboard():
     assignments = Assignment.query.all()
     students = Student.query.all()
 
+    # Map pending submissions
     pending = {}
     for a in assignments:
-        submitted_ids = [
-            s.student_id for s in Submission.query.filter_by(assignment_id=a.id)
-        ]
+        submitted_ids = [s.student_id for s in Submission.query.filter_by(assignment_id=a.id)]
         pending[a.id] = [s for s in students if s.id not in submitted_ids]
 
     return render_template(
@@ -190,7 +239,7 @@ def teacher_dashboard():
         teacher=teacher,
         assignments=assignments,
         pending=pending,
-        today=date.today()
+        current_date=date.today()
     )
 
 
@@ -238,3 +287,8 @@ def teacher_submissions(assignment_id):
 def teacher_logout():
     session.clear()
     return redirect(url_for("teacher_login"))
+
+
+# ---------------- RUN ----------------
+if __name__ == "__main__":
+    app.run(debug=True)

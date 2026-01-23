@@ -69,13 +69,11 @@
             </div>
 
             <div class="col-md-4">
-                <input type="date" name="due_date"
-                       class="form-control" required>
+                <input type="date" name="due_date" class="form-control" required>
             </div>
 
             <div class="col-md-8">
-                <input type="file" name="file"
-                       class="form-control" required>
+                <input type="file" name="file" class="form-control" required>
             </div>
 
             <div class="col-md-12">
@@ -105,7 +103,7 @@
 
             <tbody>
                 {% for a in assignments %}
-                <tr class="{% if a.due_date < today %}table-danger{% else %}table-success{% endif %}">
+                <tr class="{% if a.due_date < current_date %}table-danger{% else %}table-success{% endif %}">
                     <td>{{ a.title }}</td>
 
                     <td>{{ a.branch }} {{ a.year }}-{{ a.section }}</td>
@@ -113,7 +111,7 @@
                     <td>{{ a.due_date }}</td>
 
                     <td>
-                        {% if a.due_date < today %}
+                        {% if a.due_date < current_date %}
                             <span class="badge bg-danger">Closed</span>
                         {% else %}
                             <span class="badge bg-success">Open</span>
