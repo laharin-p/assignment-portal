@@ -7,13 +7,13 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 import cloudinary, cloudinary.uploader
 import os
-from datetime import date
+from datetime import datetime
 
 app = Flask(__name__)
-app.secret_key = os.environ["SECRET_KEY"]
+app.secret_key = os.environ.get("SECRET_KEY", "fallback-secret")
 
 # ---------------- DATABASE ----------------
-DATABASE_URL = os.environ["DATABASE_URL"]
+DATABASE_URL = os.environ.get("DATABASE_URL")
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
@@ -23,9 +23,10 @@ db = SQLAlchemy(app)
 
 # ---------------- CLOUDINARY ----------------
 cloudinary.config(
-    cloud_name=os.environ["CLOUDINARY_CLOUD_NAME"],
-    api_key=os.environ["CLOUDINARY_API_KEY"],
-    api_secret=os.environ["CLOUDINARY_API_SECRET"]
+    cloud_name=os.environ.get("CLOUDINARY_CLOUD_NAME"),
+    api_key=os.environ.get("CLOUDINARY_API_KEY"),
+    api_secret=os.environ.get("CLOUDINARY_API_SECRET"),
+    secure=True
 )
 
 # ---------------- MODELS ----------------
@@ -46,6 +47,9 @@ class Student(db.Model):
 class Assignment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200))
+    year = db.Column(db.String(20))
+    branch = db.Column(db.String(50))
+    section = db.Column(db.String(20))
     due_date = db.Column(db.Date)
     file_url = db.Column(db.String(500))
 
@@ -55,7 +59,7 @@ def home():
     return redirect("/student/login")
 
 # -------- STUDENT --------
-@app.route("/student/login", methods=["GET","POST"])
+@app.route("/student/login", methods=["GET", "POST"])
 def student_login():
     if request.method == "POST":
         s = Student.query.filter_by(email=request.form["email"]).first()
@@ -73,14 +77,15 @@ def student_dashboard():
         return redirect("/student/login")
     assignments = Assignment.query.all()
     return render_template("student_dashboard.html", assignments=assignments)
+
+
 @app.route("/student/logout")
 def student_logout():
     session.pop("student_id", None)
     return redirect(url_for("student_login"))
 
-
 # -------- TEACHER --------
-@app.route("/teacher/login", methods=["GET","POST"])
+@app.route("/teacher/login", methods=["GET", "POST"])
 def teacher_login():
     if request.method == "POST":
         t = Teacher.query.filter_by(email=request.form["email"]).first()
@@ -98,11 +103,9 @@ def teacher_dashboard():
         return redirect("/teacher/login")
     teacher = Teacher.query.get(session["teacher_id"])
     assignments = Assignment.query.all()
-    return render_template(
-        "teacher_dashboard.html",
-        teacher=teacher,
-        assignments=assignments
-    )
+    return render_template("teacher_dashboard.html", teacher=teacher, assignments=assignments)
+
+
 @app.route("/teacher/upload", methods=["POST"])
 def teacher_upload():
     if "teacher_id" not in session:
@@ -112,22 +115,19 @@ def teacher_upload():
     year = request.form["year"]
     branch = request.form["branch"]
     section = request.form["section"]
-    due_date = request.form["due_date"]
-    file = request.files["file"]
+    due_date = datetime.strptime(request.form["due_date"], "%Y-%m-%d").date()
+    file = request.files.get("file")
 
-    if not file:
+    if not file or file.filename == "":
         return "No file uploaded", 400
 
-    # 🔐 sanitize filename (even though Cloudinary is used)
-    secure_filename(file.filename)
+    filename = secure_filename(file.filename)
 
-    # ☁️ Upload to Cloudinary
     upload_result = cloudinary.uploader.upload(
         file,
-        resource_type="raw"
+        resource_type="raw",
+        public_id=filename
     )
-
-    file_url = upload_result["secure_url"]
 
     assignment = Assignment(
         title=title,
@@ -135,7 +135,7 @@ def teacher_upload():
         branch=branch,
         section=section,
         due_date=due_date,
-        file_url=file_url
+        file_url=upload_result["secure_url"]
     )
 
     db.session.add(assignment)
@@ -144,7 +144,6 @@ def teacher_upload():
     return redirect(url_for("teacher_dashboard"))
 
 
-    
 @app.route("/teacher/logout")
 def teacher_logout():
     session.pop("teacher_id", None)
@@ -153,4 +152,4 @@ def teacher_logout():
 
 # ---------------- START ----------------
 if __name__ == "__main__":
-    app.run()
+    app.run(debug=True)
