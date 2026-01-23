@@ -54,15 +54,17 @@ class Student(db.Model):
     email = db.Column(db.String(100), unique=True, nullable=False)
     password = db.Column(db.String(200), nullable=False)
 
-
 class Assignment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(200))
-    file_url = db.Column(db.Text)
-    branch = db.Column(db.String(50))
-    year = db.Column(db.String(10))
-    section = db.Column(db.String(10))
-    due_date = db.Column(db.String(20))
+    title = db.Column(db.String(200), nullable=False)
+    due_date = db.Column(db.String(20), nullable=False)
+
+    year = db.Column(db.String(10), nullable=False)
+    branch = db.Column(db.String(10), nullable=False)
+    section = db.Column(db.String(10), nullable=False)
+
+    file_url = db.Column(db.String(500), nullable=False)
+
 
 
 class Submission(db.Model):
@@ -209,8 +211,7 @@ def teacher_logout():
 
 # ---------------- START ----------------
 with app.app_context():
+    db.drop_all()
     db.create_all()
     print("✅ DATABASE READY")
 
-if __name__ == "__main__":
-    app.run(debug=True)
