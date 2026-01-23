@@ -1,6 +1,7 @@
 
 from flask import Flask, render_template, request, redirect, session, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.exc import IntegrityError
 from werkzeug.security import generate_password_hash, check_password_hash
 import cloudinary, cloudinary.uploader
 import os
@@ -38,12 +39,15 @@ class Teacher(db.Model):
     email = db.Column(db.String(100), unique=True)
     password = db.Column(db.String(200))
 
-
 class Student(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    roll_no = db.Column(db.String(20), unique=True)
     name = db.Column(db.String(100))
-    email = db.Column(db.String(100), unique=True)
+    roll_no = db.Column(db.String(20), unique=True)
+    branch = db.Column(db.String(20))
+    year = db.Column(db.String(10))
+    section = db.Column(db.String(10))
+    phone = db.Column(db.String(15))
+    email = db.Column(db.String(120), unique=True)
     password = db.Column(db.String(200))
 
 
@@ -87,51 +91,72 @@ def home():
 
 
 # ================= STUDENT =================
-@app.route("/student/register", methods=["GET", "POST"])
+@app.route('/student/register', methods=['GET', 'POST'])
 def student_register():
-    if request.method == "POST":
-        roll_no = request.form.get("roll_no")
-        name = request.form.get("name")
-        email = request.form.get("email")
-        password = request.form.get("password")
+    if request.method == 'POST':
+        name = request.form['name']
+        roll_no = request.form['rollno']   # from HTML
+        branch = request.form['branch']
+        year = request.form['year']
+        section = request.form['section']
+        phone = request.form['phone']
+        email = request.form['email']
+        password = generate_password_hash(request.form['password'])
 
-        if not all([roll_no, name, email, password]):
-            flash("All fields are required", "danger")
-            return redirect(url_for("student_register"))
+        # Check duplicate roll or email
+        existing = Student.query.filter(
+            (Student.email == email) | (Student.roll_no == roll_no)
+        ).first()
 
-        if Student.query.filter_by(email=email).first():
-            flash("Email already registered", "danger")
-            return redirect(url_for("student_register"))
+        if existing:
+            return render_template(
+                'student_register.html',
+                error="Roll number or Email already exists"
+            )
 
         student = Student(
-            roll_no=roll_no,
             name=name,
+            roll_no=roll_no,
+            branch=branch,
+            year=year,
+            section=section,
+            phone=phone,
             email=email,
-            password=generate_password_hash(password)
+            password=password
         )
 
         db.session.add(student)
         db.session.commit()
-        return redirect(url_for("student_login"))
 
-    return render_template("student_register.html")
+        # ✅ AUTO LOGIN AFTER REGISTER
+        session['student_id'] = student.id
+        session['student_name'] = student.name
 
+        return redirect('/student/dashboard')  # ✅ correct
 
-@app.route("/student/login", methods=["GET", "POST"])
+    return render_template('student_register.html')
+
+@app.route('/student/login', methods=['GET', 'POST'])
 def student_login():
-    if request.method == "POST":
-        email = request.form.get("email")
-        password = request.form.get("password")
+    if request.method == 'POST':
+        email = request.form['email']
+        password = request.form['password']
 
-        s = Student.query.filter_by(email=email).first()
-        if s and check_password_hash(s.password, password):
-            session.clear()
-            session["student_id"] = s.id
-            return redirect(url_for("student_dashboard"))
+        student = Student.query.filter_by(email=email).first()
 
-        flash("Invalid login credentials", "danger")
+        if student and check_password_hash(student.password, password):
+            session['student_id'] = student.id
+            session['student_name'] = student.name
+            return redirect('/student/dashboard')
 
-    return render_template("student_login.html")
+        return render_template(
+            'student_login.html',
+            error="Invalid email or password"
+        )
+
+    return render_template('student_login.html')
+
+
 
 
 @app.route("/student/dashboard")
