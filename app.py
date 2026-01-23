@@ -131,14 +131,11 @@ def student_dashboard():
     if "student_id" not in session:
         return redirect(url_for("student_login"))
 
-    assignments = Assignment.query.all()
-    submissions = Submission.query.filter_by(student_id=session["student_id"]).all()
-
     return render_template(
         "student_dashboard.html",
-        assignments=assignments,
-        submissions=submissions,
-        current_date=date.today()
+        assignments=Assignment.query.all(),
+        submissions=Submission.query.filter_by(student_id=session["student_id"]).all(),
+        current_date=datetime.now()   # ✅ FIX
     )
 
 @app.route("/student/submit/<int:assignment_id>", methods=["POST"])
@@ -243,7 +240,22 @@ def teacher_dashboard():
         teacher=Teacher.query.get(session["teacher_id"]),
         assignments=assignments,
         pending=pending,
-        current_date=date.today()
+        current_date=datetime.now()   # ✅ FIX
+    )
+
+# ✅ MISSING ROUTE FIXED
+@app.route("/teacher/submissions/<int:assignment_id>")
+def teacher_submissions(assignment_id):
+    if "teacher_id" not in session:
+        return redirect(url_for("teacher_login"))
+
+    assignment = Assignment.query.get_or_404(assignment_id)
+    submissions = Submission.query.filter_by(assignment_id=assignment_id).all()
+
+    return render_template(
+        "teacher_submissions.html",
+        assignment=assignment,
+        submissions=submissions
     )
 
 @app.route("/teacher/upload", methods=["POST"])
