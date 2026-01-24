@@ -155,15 +155,20 @@ def student_login():
 
 @app.route("/student/dashboard")
 def student_dashboard():
-    if "student_id" not in session:
-        return redirect(url_for("student_login"))
+if "student_id" not in session:
+return redirect(url_for("student_login"))
 
-    return render_template(
-        "student_dashboard.html",
-        assignments=Assignment.query.all(),
-        submissions=Submission.query.filter_by(student_id=session["student_id"]).all(),
-        current_date=date.today()
-    )
+
+student = Student.query.get(session["student_id"]) # get logged-in student
+
+
+return render_template(
+"student_dashboard.html",
+student=student, # pass student object
+assignments=Assignment.query.all(),
+submissions=Submission.query.filter_by(student_id=session["student_id"]).all(),
+current_date=date.today()
+)
 
 @app.route("/student/submit/<int:assignment_id>", methods=["POST"])
 def submit_assignment(assignment_id):
@@ -218,23 +223,31 @@ def teacher_login():
 
 @app.route("/teacher/dashboard")
 def teacher_dashboard():
-    if "teacher_id" not in session:
-        return redirect(url_for("teacher_login"))
+if "teacher_id" not in session:
+return redirect(url_for("teacher_login"))
 
-    assignments = Assignment.query.all()
-    students = Student.query.all()
-    pending = {}
 
-    for a in assignments:
-        submitted_ids = [s.student_id for s in Submission.query.filter_by(assignment_id=a.id)]
-        pending[a.id] = [s for s in students if s.id not in submitted_ids]
+teacher = Teacher.query.get(session["teacher_id"]) # get logged-in teacher
 
-    return render_template(
-        "teacher_dashboard.html",
-        assignments=assignments,
-        pending=pending,
-        current_date=date.today()
-    )
+
+assignments = Assignment.query.all()
+students = Student.query.all()
+pending = {}
+
+
+for a in assignments:
+submitted_ids = [s.student_id for s in Submission.query.filter_by(assignment_id=a.id)]
+pending[a.id] = [s for s in students if s.id not in submitted_ids]
+
+
+return render_template(
+"teacher_dashboard.html",
+teacher=teacher, # pass teacher object
+assignments=assignments,
+pending=pending,
+current_date=date.today()
+)
+       
 
 @app.route("/teacher/upload", methods=["POST"])
 def teacher_upload():
