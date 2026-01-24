@@ -76,7 +76,7 @@ class Submission(db.Model):
 with app.app_context():
     db.create_all()
 
-# ---------------- FILE PROXY (MOBILE FIX) ----------------
+# ---------------- FILE PROXY ----------------
 @app.route("/file")
 def open_file():
     url = request.args.get("url")
@@ -84,13 +84,10 @@ def open_file():
         return "File not found", 404
 
     r = requests.get(url, stream=True)
-
     return Response(
         r.iter_content(chunk_size=1024),
         content_type=r.headers.get("Content-Type", "application/pdf"),
-        headers={
-            "Content-Disposition": "inline"
-        }
+        headers={"Content-Disposition": "inline"}
     )
 
 # ---------------- PLAGIARISM ----------------
@@ -155,20 +152,18 @@ def student_login():
 
 @app.route("/student/dashboard")
 def student_dashboard():
-if "student_id" not in session:
-return redirect(url_for("student_login"))
+    if "student_id" not in session:
+        return redirect(url_for("student_login"))
 
+    student = Student.query.get(session["student_id"])  # logged-in student
 
-student = Student.query.get(session["student_id"]) # get logged-in student
-
-
-return render_template(
-"student_dashboard.html",
-student=student, # pass student object
-assignments=Assignment.query.all(),
-submissions=Submission.query.filter_by(student_id=session["student_id"]).all(),
-current_date=date.today()
-)
+    return render_template(
+        "student_dashboard.html",
+        student=student,
+        assignments=Assignment.query.all(),
+        submissions=Submission.query.filter_by(student_id=session["student_id"]).all(),
+        current_date=date.today()
+    )
 
 @app.route("/student/submit/<int:assignment_id>", methods=["POST"])
 def submit_assignment(assignment_id):
@@ -217,37 +212,32 @@ def teacher_login():
         if teacher and check_password_hash(teacher.password, request.form["password"]):
             session.clear()
             session["teacher_id"] = teacher.id
+            session["teacher_name"] = teacher.name
             return redirect(url_for("teacher_dashboard"))
         flash("Invalid credentials", "danger")
     return render_template("teacher_login.html")
 
 @app.route("/teacher/dashboard")
 def teacher_dashboard():
-if "teacher_id" not in session:
-return redirect(url_for("teacher_login"))
+    if "teacher_id" not in session:
+        return redirect(url_for("teacher_login"))
 
+    teacher = Teacher.query.get(session["teacher_id"])  # logged-in teacher
+    assignments = Assignment.query.all()
+    students = Student.query.all()
+    pending = {}
 
-teacher = Teacher.query.get(session["teacher_id"]) # get logged-in teacher
+    for a in assignments:
+        submitted_ids = [s.student_id for s in Submission.query.filter_by(assignment_id=a.id)]
+        pending[a.id] = [s for s in students if s.id not in submitted_ids]
 
-
-assignments = Assignment.query.all()
-students = Student.query.all()
-pending = {}
-
-
-for a in assignments:
-submitted_ids = [s.student_id for s in Submission.query.filter_by(assignment_id=a.id)]
-pending[a.id] = [s for s in students if s.id not in submitted_ids]
-
-
-return render_template(
-"teacher_dashboard.html",
-teacher=teacher, # pass teacher object
-assignments=assignments,
-pending=pending,
-current_date=date.today()
-)
-       
+    return render_template(
+        "teacher_dashboard.html",
+        teacher=teacher,
+        assignments=assignments,
+        pending=pending,
+        current_date=date.today()
+    )
 
 @app.route("/teacher/upload", methods=["POST"])
 def teacher_upload():
