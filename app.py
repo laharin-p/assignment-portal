@@ -4,12 +4,9 @@ from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 import cloudinary, cloudinary.uploader
 import os
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 import hashlib
 import requests
-from mimetypes import guess_type
-from flask import send_file
-import tempfile
 
 # ---------------- APP ----------------
 app = Flask(__name__)
@@ -19,10 +16,8 @@ app.secret_key = os.environ.get("SECRET_KEY", "dev_secret_key")
 DATABASE_URL = os.environ.get("DATABASE_URL")
 if not DATABASE_URL:
     raise RuntimeError("DATABASE_URL is not set")
-
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
-
 app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db = SQLAlchemy(app)
@@ -75,39 +70,22 @@ class Submission(db.Model):
     assignment = db.relationship("Assignment")
     student = db.relationship("Student")
 
-# ---------------- CREATE TABLES ----------------
 with app.app_context():
     db.create_all()
 
 # ---------------- FILE PROXY ----------------
-from mimetypes import guess_type
-from flask import send_file
-import tempfile
-
 @app.route("/file")
 def open_file():
     url = request.args.get("url")
     if not url:
         return "File not found", 404
-
     r = requests.get(url, stream=True)
-    if r.status_code != 200:
-        return "File not accessible", 404
-
-    # Save to a temporary file
-    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
-    for chunk in r.iter_content(chunk_size=8192):
-        if chunk:
-            tmp.write(chunk)
-    tmp.flush()
-
-    # Serve as a proper PDF with correct headers
-    return send_file(
-        tmp.name,
-        mimetype="application/pdf",
-        as_attachment=True,
-        download_name=url.split("/")[-1]
+    return Response(
+        r.iter_content(chunk_size=1024),
+        content_type=r.headers.get("Content-Type", "application/pdf"),
+        headers={"Content-Disposition": "inline"}
     )
+
 # ---------------- PLAGIARISM ----------------
 def calculate_hash(file):
     file.stream.seek(0)
@@ -116,10 +94,7 @@ def calculate_hash(file):
     return hashlib.sha256(content).hexdigest()
 
 def plagiarism_check(assignment_id, file_hash):
-    exists = Submission.query.filter_by(
-        assignment_id=assignment_id,
-        file_hash=file_hash
-    ).first()
+    exists = Submission.query.filter_by(assignment_id=assignment_id, file_hash=file_hash).first()
     return 95.0 if exists else 5.0
 
 # ---------------- HOME ----------------
@@ -147,7 +122,6 @@ def student_register():
             email=request.form["email"],
             password=generate_password_hash(request.form["password"])
         )
-
         db.session.add(student)
         db.session.commit()
         session["student_id"] = student.id
@@ -173,13 +147,29 @@ def student_dashboard():
     if "student_id" not in session:
         return redirect(url_for("student_login"))
 
-    student = Student.query.get(session["student_id"])  # logged-in student
+    student = Student.query.get(session["student_id"])
+    assignments = Assignment.query.all()
+    submissions = Submission.query.filter_by(student_id=student.id).all()
+
+    # Compute deadline status
+    assignment_status = []
+    for a in assignments:
+        submitted = any(s.assignment_id == a.id for s in submissions)
+        days_left = (a.due_date - date.today()).days
+        color = "red" if days_left < 0 else "orange" if days_left <= 2 else "green"
+        can_upload = (days_left >= 0) and not submitted
+        assignment_status.append({
+            "assignment": a,
+            "submitted": submitted,
+            "days_left": days_left,
+            "color": color,
+            "can_upload": can_upload
+        })
 
     return render_template(
         "student_dashboard.html",
         student=student,
-        assignments=Assignment.query.all(),
-        submissions=Submission.query.filter_by(student_id=session["student_id"]).all(),
+        assignment_status=assignment_status,
         current_date=date.today()
     )
 
@@ -211,26 +201,9 @@ def submit_assignment(assignment_id):
         submitted_on=date.today(),
         plagiarism_score=score
     )
-
     db.session.add(submission)
     db.session.commit()
     flash("Assignment submitted successfully", "success")
-    return redirect(url_for("student_dashboard"))
-@app.route("/student/submission/delete/<int:submission_id>", methods=["POST"])
-def delete_submission(submission_id):
-    if "student_id" not in session:
-        return redirect(url_for("student_login"))
-
-    submission = Submission.query.get_or_404(submission_id)
-
-    # Ensure students can only delete their own submissions
-    if submission.student_id != session["student_id"]:
-        flash("Unauthorized action", "danger")
-        return redirect(url_for("student_dashboard"))
-
-    db.session.delete(submission)
-    db.session.commit()
-    flash("Submission deleted", "success")
     return redirect(url_for("student_dashboard"))
 
 @app.route("/student/logout")
@@ -256,18 +229,15 @@ def teacher_dashboard():
     if "teacher_id" not in session:
         return redirect(url_for("teacher_login"))
 
-    teacher = Teacher.query.get(session["teacher_id"])  # logged-in teacher
     assignments = Assignment.query.all()
     students = Student.query.all()
     pending = {}
-
     for a in assignments:
         submitted_ids = [s.student_id for s in Submission.query.filter_by(assignment_id=a.id)]
         pending[a.id] = [s for s in students if s.id not in submitted_ids]
 
     return render_template(
         "teacher_dashboard.html",
-        teacher=teacher,
         assignments=assignments,
         pending=pending,
         current_date=date.today()
@@ -298,11 +268,11 @@ def teacher_upload():
         due_date=datetime.strptime(request.form["due_date"], "%Y-%m-%d").date(),
         file_url=upload["secure_url"]
     )
-
     db.session.add(assignment)
     db.session.commit()
     flash("Assignment uploaded", "success")
     return redirect(url_for("teacher_dashboard"))
+
 @app.route("/teacher/submissions/<int:assignment_id>")
 def teacher_submissions(assignment_id):
     if "teacher_id" not in session:
@@ -310,7 +280,6 @@ def teacher_submissions(assignment_id):
 
     assignment = Assignment.query.get_or_404(assignment_id)
     submissions = Submission.query.filter_by(assignment_id=assignment_id).all()
-
     return render_template(
         "teacher_submissions.html",
         assignment=assignment,
