@@ -58,12 +58,12 @@
 
                 <div class="mt-3">
 
-                    <!-- Preview + Download -->
+                    <!-- Preview + Download using open_file route -->
                     <div class="d-flex gap-2 flex-wrap mb-2">
-                        <a href="{{ a.file_url }}" target="_blank" class="btn btn-sm btn-primary flex-fill">
+                        <a href="{{ url_for('open_file') }}?url={{ a.file_url }}" target="_blank" class="btn btn-sm btn-primary flex-fill">
                             Preview
                         </a>
-                        <a href="{{ a.file_url }}?dl=true" class="btn btn-sm btn-secondary flex-fill">
+                        <a href="{{ url_for('open_file') }}?url={{ a.file_url }}&dl=true" class="btn btn-sm btn-secondary flex-fill">
                             Download
                         </a>
                     </div>
@@ -142,10 +142,10 @@
                 </p>
 
                 <div class="d-flex gap-2 flex-wrap mb-2">
-                    <a href="{{ s.file_url }}" target="_blank" class="btn btn-sm btn-primary flex-fill">
+                    <a href="{{ url_for('open_file') }}?url={{ s.file_url }}" target="_blank" class="btn btn-sm btn-primary flex-fill">
                         Preview
                     </a>
-                    <a href="{{ s.file_url }}?dl=true" class="btn btn-sm btn-secondary flex-fill">
+                    <a href="{{ url_for('open_file') }}?url={{ s.file_url }}&dl=true" class="btn btn-sm btn-secondary flex-fill">
                         Download
                     </a>
                 </div>

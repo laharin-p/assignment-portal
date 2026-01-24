@@ -1,11 +1,12 @@
 
-from flask import Flask, render_template, request, redirect, session, url_for, flash
+from flask import Flask, render_template, request, redirect, session, url_for, flash, Response
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 import cloudinary, cloudinary.uploader
 import os
 from datetime import datetime, date
 import hashlib
+import requests
 
 # ---------------- APP ----------------
 app = Flask(__name__)
@@ -75,6 +76,23 @@ class Submission(db.Model):
 with app.app_context():
     db.create_all()
 
+# ---------------- FILE PROXY (MOBILE FIX) ----------------
+@app.route("/file")
+def open_file():
+    url = request.args.get("url")
+    if not url:
+        return "File not found", 404
+
+    r = requests.get(url, stream=True)
+
+    return Response(
+        r.iter_content(chunk_size=1024),
+        content_type=r.headers.get("Content-Type", "application/pdf"),
+        headers={
+            "Content-Disposition": "inline"
+        }
+    )
+
 # ---------------- PLAGIARISM ----------------
 def calculate_hash(file):
     file.stream.seek(0)
@@ -89,7 +107,7 @@ def plagiarism_check(assignment_id, file_hash):
     ).first()
     return 95.0 if exists else 5.0
 
-# ---------------- ROUTES ----------------
+# ---------------- HOME ----------------
 @app.route("/")
 def home():
     return redirect(url_for("student_login"))
@@ -102,7 +120,7 @@ def student_register():
             (Student.email == request.form["email"]) |
             (Student.roll_no == request.form["rollno"])
         ).first():
-            return render_template("student_register.html", error="Roll number or Email already exists")
+            return render_template("student_register.html", error="Already exists")
 
         student = Student(
             name=request.form["name"],
@@ -132,7 +150,7 @@ def student_login():
             session["student_id"] = student.id
             session["student_name"] = student.name
             return redirect(url_for("student_dashboard"))
-        flash("Invalid email or password", "danger")
+        flash("Invalid credentials", "danger")
     return render_template("student_login.html")
 
 @app.route("/student/dashboard")
@@ -153,15 +171,8 @@ def submit_assignment(assignment_id):
         return redirect(url_for("student_login"))
 
     file = request.files.get("file")
-    if not file or file.filename == "":
+    if not file:
         flash("No file selected", "danger")
-        return redirect(url_for("student_dashboard"))
-
-    if Submission.query.filter_by(
-        student_id=session["student_id"],
-        assignment_id=assignment_id
-    ).first():
-        flash("Assignment already submitted", "warning")
         return redirect(url_for("student_dashboard"))
 
     file_hash = calculate_hash(file)
@@ -169,10 +180,9 @@ def submit_assignment(assignment_id):
 
     upload = cloudinary.uploader.upload(
         file,
-        resource_type="image",
-        format="pdf",
+        resource_type="raw",
         use_filename=True,
-        unique_filename=False
+        unique_filename=True
     )
 
     submission = Submission(
@@ -186,7 +196,7 @@ def submit_assignment(assignment_id):
 
     db.session.add(submission)
     db.session.commit()
-    flash(f"Assignment submitted successfully | Plagiarism: {score}%", "success")
+    flash("Assignment submitted successfully", "success")
     return redirect(url_for("student_dashboard"))
 
 @app.route("/student/logout")
@@ -221,7 +231,6 @@ def teacher_dashboard():
 
     return render_template(
         "teacher_dashboard.html",
-        teacher=Teacher.query.get(session["teacher_id"]),
         assignments=assignments,
         pending=pending,
         current_date=date.today()
@@ -239,10 +248,9 @@ def teacher_upload():
 
     upload = cloudinary.uploader.upload(
         file,
-        resource_type="image",
-        format="pdf",
+        resource_type="raw",
         use_filename=True,
-        unique_filename=False
+        unique_filename=True
     )
 
     assignment = Assignment(
@@ -256,7 +264,7 @@ def teacher_upload():
 
     db.session.add(assignment)
     db.session.commit()
-    flash("Assignment uploaded successfully", "success")
+    flash("Assignment uploaded", "success")
     return redirect(url_for("teacher_dashboard"))
 
 @app.route("/teacher/logout")

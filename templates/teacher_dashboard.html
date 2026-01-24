@@ -5,7 +5,6 @@
     <meta charset="UTF-8">
     <title>Teacher Dashboard</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 
@@ -14,14 +13,10 @@
 <!-- 🔝 NAVBAR -->
 <nav class="navbar navbar-dark bg-dark px-3 d-flex justify-content-between">
     <span class="navbar-brand">Teacher Dashboard</span>
-
     <span class="text-white d-none d-md-block">
         Welcome {{ teacher.name }}
     </span>
-
-    <a href="{{ url_for('teacher_logout') }}" class="btn btn-danger btn-sm">
-        Logout
-    </a>
+    <a href="{{ url_for('teacher_logout') }}" class="btn btn-danger btn-sm">Logout</a>
 </nav>
 
 <div class="container mt-4">
@@ -36,8 +31,7 @@
               class="row g-3">
 
             <div class="col-md-6">
-                <input type="text" name="title" class="form-control"
-                       placeholder="Assignment Title" required>
+                <input type="text" name="title" class="form-control" placeholder="Assignment Title" required>
             </div>
 
             <div class="col-md-2">
@@ -69,8 +63,7 @@
             </div>
 
             <div class="col-md-4">
-                <input type="date" name="due_date" class="form-control"
-                       min="{{ current_date }}" required>
+                <input type="date" name="due_date" class="form-control" min="{{ current_date }}" required>
             </div>
 
             <div class="col-md-8">
@@ -78,9 +71,7 @@
             </div>
 
             <div class="col-md-12">
-                <button type="submit" class="btn btn-primary w-100 w-md-auto">
-                    Upload Assignment
-                </button>
+                <button type="submit" class="btn btn-primary w-100 w-md-auto">Upload Assignment</button>
             </div>
 
         </form>
@@ -97,9 +88,7 @@
                 <div class="card-body">
                     <h5>{{ a.title }}</h5>
                     <p class="mb-1">{{ a.branch }} {{ a.year }}-{{ a.section }}</p>
-                    <p class="mb-1">
-                        Due: {{ a.due_date.strftime('%d-%m-%Y') }}
-                    </p>
+                    <p class="mb-1">Due: {{ a.due_date.strftime('%d-%m-%Y') }}</p>
 
                     {% if a.due_date < current_date %}
                         <span class="badge bg-danger">Closed</span>
@@ -107,9 +96,7 @@
                         <span class="badge bg-success">Open</span>
                     {% endif %}
 
-                    <p class="mt-2 text-danger">
-                        Pending: {{ pending[a.id]|length }} students
-                    </p>
+                    <p class="mt-2 text-danger">Pending: {{ pending[a.id]|length }} students</p>
 
                     <details>
                         <summary>Show Pending Students</summary>
@@ -121,14 +108,13 @@
                     </details>
 
                     <div class="mt-3 d-flex gap-2 flex-wrap">
-                        <a href="{{ a.file_url }}" target="_blank" class="btn btn-sm btn-primary">
+                        <a href="{{ url_for('open_file') }}?url={{ a.file_url }}" target="_blank" class="btn btn-sm btn-primary">
                             Preview
                         </a>
-                        <a href="{{ a.file_url }}?dl=true" class="btn btn-sm btn-secondary">
+                        <a href="{{ url_for('open_file') }}?url={{ a.file_url }}&dl=true" class="btn btn-sm btn-secondary">
                             Download
                         </a>
-                        <a href="{{ url_for('teacher_submissions', assignment_id=a.id) }}"
-                           class="btn btn-sm btn-info">
+                        <a href="{{ url_for('teacher_submissions', assignment_id=a.id) }}" class="btn btn-sm btn-info">
                             Submissions
                         </a>
                     </div>
@@ -158,7 +144,6 @@
                         <td>{{ a.title }}</td>
                         <td>{{ a.branch }} {{ a.year }}-{{ a.section }}</td>
                         <td>{{ a.due_date.strftime('%d-%m-%Y') }}</td>
-
                         <td>
                             {% if a.due_date < current_date %}
                                 <span class="badge bg-danger">Closed</span>
@@ -166,32 +151,24 @@
                                 <span class="badge bg-success">Open</span>
                             {% endif %}
                         </td>
-
+                        <td>{{ pending[a.id]|length }}</td>
                         <td>
-                            {{ pending[a.id]|length }}
-                        </td>
-
-                        <td>
-                            <a href="{{ a.file_url }}" target="_blank" class="btn btn-sm btn-primary">
+                            <a href="{{ url_for('open_file') }}?url={{ a.file_url }}" target="_blank" class="btn btn-sm btn-primary">
                                 Preview
                             </a>
-                            <a href="{{ a.file_url }}?dl=true" class="btn btn-sm btn-secondary">
+                            <a href="{{ url_for('open_file') }}?url={{ a.file_url }}&dl=true" class="btn btn-sm btn-secondary">
                                 Download
                             </a>
                         </td>
-
                         <td>
-                            <a href="{{ url_for('teacher_submissions', assignment_id=a.id) }}"
-                               class="btn btn-info btn-sm">
+                            <a href="{{ url_for('teacher_submissions', assignment_id=a.id) }}" class="btn btn-info btn-sm">
                                 View Submissions
                             </a>
                         </td>
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="7" class="text-center text-muted">
-                            No assignments uploaded yet
-                        </td>
+                        <td colspan="7" class="text-center text-muted">No assignments uploaded yet</td>
                     </tr>
                     {% endfor %}
                 </tbody>
