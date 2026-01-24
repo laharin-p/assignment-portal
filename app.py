@@ -7,6 +7,9 @@ import os
 from datetime import datetime, date
 import hashlib
 import requests
+from mimetypes import guess_type
+from flask import send_file
+import tempfile
 
 # ---------------- APP ----------------
 app = Flask(__name__)
@@ -77,7 +80,6 @@ with app.app_context():
     db.create_all()
 
 # ---------------- FILE PROXY ----------------
-# ---------------- FILE PROXY (PDF INLINE / OTHERS DOWNLOAD) ----------------
 @app.route("/file")
 def open_file():
     url = request.args.get("url")
@@ -88,19 +90,20 @@ def open_file():
     if r.status_code != 200:
         return "File not accessible", 404
 
-    # Get actual content type
-    content_type = r.headers.get("Content-Type", "application/octet-stream")
-    filename = url.split("/")[-1]  # Extract file name from URL
+    # Use a temporary file to stream properly
+    tmp = tempfile.NamedTemporaryFile(delete=False)
+    for chunk in r.iter_content(chunk_size=8192):
+        if chunk:
+            tmp.write(chunk)
+    tmp.flush()
 
-    # Inline for PDF, attachment for others
-    disposition = "inline" if "pdf" in content_type else "attachment"
+    content_type = r.headers.get("Content-Type") or guess_type(url)[0] or "application/octet-stream"
 
-    return Response(
-        r.iter_content(chunk_size=1024),
-        content_type=content_type,
-        headers={
-            "Content-Disposition": f'{disposition}; filename="{filename}"'
-        }
+    return send_file(
+        tmp.name,
+        mimetype=content_type,
+        as_attachment=True,   # forces download
+        download_name=url.split("/")[-1]  # use original filename
     )
 # ---------------- PLAGIARISM ----------------
 def calculate_hash(file):
