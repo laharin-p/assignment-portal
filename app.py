@@ -198,6 +198,22 @@ def submit_assignment(assignment_id):
     db.session.commit()
     flash("Assignment submitted successfully", "success")
     return redirect(url_for("student_dashboard"))
+@app.route("/student/submission/delete/<int:submission_id>", methods=["POST"])
+def delete_submission(submission_id):
+    if "student_id" not in session:
+        return redirect(url_for("student_login"))
+
+    submission = Submission.query.get_or_404(submission_id)
+
+    # Ensure students can only delete their own submissions
+    if submission.student_id != session["student_id"]:
+        flash("Unauthorized action", "danger")
+        return redirect(url_for("student_dashboard"))
+
+    db.session.delete(submission)
+    db.session.commit()
+    flash("Submission deleted", "success")
+    return redirect(url_for("student_dashboard"))
 
 @app.route("/student/logout")
 def student_logout():
