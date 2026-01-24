@@ -80,6 +80,10 @@ with app.app_context():
     db.create_all()
 
 # ---------------- FILE PROXY ----------------
+from mimetypes import guess_type
+from flask import send_file
+import tempfile
+
 @app.route("/file")
 def open_file():
     url = request.args.get("url")
@@ -90,20 +94,19 @@ def open_file():
     if r.status_code != 200:
         return "File not accessible", 404
 
-    # Use a temporary file to stream properly
-    tmp = tempfile.NamedTemporaryFile(delete=False)
+    # Save to a temporary file
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
     for chunk in r.iter_content(chunk_size=8192):
         if chunk:
             tmp.write(chunk)
     tmp.flush()
 
-    content_type = r.headers.get("Content-Type") or guess_type(url)[0] or "application/octet-stream"
-
+    # Serve as a proper PDF with correct headers
     return send_file(
         tmp.name,
-        mimetype=content_type,
-        as_attachment=True,   # forces download
-        download_name=url.split("/")[-1]  # use original filename
+        mimetype="application/pdf",
+        as_attachment=True,
+        download_name=url.split("/")[-1]
     )
 # ---------------- PLAGIARISM ----------------
 def calculate_hash(file):
