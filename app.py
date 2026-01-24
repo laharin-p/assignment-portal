@@ -212,6 +212,28 @@ def student_logout():
     return redirect(url_for("student_login"))
 
 # ================= TEACHER =================
+@app.route("/teacher/register", methods=["GET", "POST"])
+def teacher_register():
+    if request.method == "POST":
+        # Check if teacher already exists
+        if Teacher.query.filter_by(email=request.form["email"]).first():
+            flash("Teacher already exists", "danger")
+            return redirect(url_for("teacher_register"))
+
+        teacher = Teacher(
+            name=request.form["name"],
+            email=request.form["email"],
+            password=generate_password_hash(request.form["password"])
+        )
+
+        db.session.add(teacher)
+        db.session.commit()
+
+        flash("Teacher registered successfully. Please login.", "success")
+        return redirect(url_for("teacher_login"))
+
+    return render_template("teacher_register.html")
+    
 @app.route("/teacher/login", methods=["GET", "POST"])
 def teacher_login():
     if request.method == "POST":
