@@ -77,6 +77,7 @@ with app.app_context():
     db.create_all()
 
 # ---------------- FILE PROXY ----------------
+# ---------------- FILE PROXY (PDF INLINE / OTHERS DOWNLOAD) ----------------
 @app.route("/file")
 def open_file():
     url = request.args.get("url")
@@ -84,12 +85,23 @@ def open_file():
         return "File not found", 404
 
     r = requests.get(url, stream=True)
+    if r.status_code != 200:
+        return "File not accessible", 404
+
+    # Get actual content type
+    content_type = r.headers.get("Content-Type", "application/octet-stream")
+    filename = url.split("/")[-1]  # Extract file name from URL
+
+    # Inline for PDF, attachment for others
+    disposition = "inline" if "pdf" in content_type else "attachment"
+
     return Response(
         r.iter_content(chunk_size=1024),
-        content_type=r.headers.get("Content-Type", "application/pdf"),
-        headers={"Content-Disposition": "inline"}
+        content_type=content_type,
+        headers={
+            "Content-Disposition": f'{disposition}; filename="{filename}"'
+        }
     )
-
 # ---------------- PLAGIARISM ----------------
 def calculate_hash(file):
     file.stream.seek(0)
