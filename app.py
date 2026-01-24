@@ -229,15 +229,19 @@ def teacher_dashboard():
     if "teacher_id" not in session:
         return redirect(url_for("teacher_login"))
 
+    teacher = Teacher.query.get(session["teacher_id"])  # <-- fetch teacher
+
     assignments = Assignment.query.all()
     students = Student.query.all()
     pending = {}
+
     for a in assignments:
         submitted_ids = [s.student_id for s in Submission.query.filter_by(assignment_id=a.id)]
         pending[a.id] = [s for s in students if s.id not in submitted_ids]
 
     return render_template(
         "teacher_dashboard.html",
+        teacher=teacher,      # <-- pass teacher here
         assignments=assignments,
         pending=pending,
         current_date=date.today()
