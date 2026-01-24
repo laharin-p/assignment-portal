@@ -10,10 +10,17 @@
 
 <body class="bg-light">
 
-<nav class="navbar navbar-dark bg-dark px-4">
+<!-- 🔝 NAVBAR -->
+<nav class="navbar navbar-dark bg-dark px-3 d-flex justify-content-between">
     <span class="navbar-brand fs-4">Student Dashboard</span>
-    <span class="text-white me-3">Hello, {{ session['student_name'] }}</span>
-    <a href="{{ url_for('student_logout') }}" class="btn btn-danger btn-sm">Logout</a>
+
+    <span class="text-white d-none d-md-block">
+        Hello, {{ session['student_name'] }}
+    </span>
+
+    <a href="{{ url_for('student_logout') }}" class="btn btn-danger btn-sm">
+        Logout
+    </a>
 </nav>
 
 <div class="container my-4">
@@ -30,32 +37,58 @@
 
     {% if not submission %}
     {% set shown = true %}
-    <div class="col-md-6 mb-3">
+    <div class="col-lg-6 col-md-6 mb-3">
         <div class="card h-100 shadow-sm {% if expired %}border-danger{% else %}border-success{% endif %}">
             <div class="card-body">
                 <h5 class="card-title">{{ a.title }}</h5>
-                <p><strong>Class:</strong> {{ a.branch }} {{ a.year }}-{{ a.section }}</p>
-                <p><strong>Due Date:</strong> {{ a.due_date.strftime('%d-%m-%Y') }}</p>
+
+                <p class="mb-1">
+                    <strong>Class:</strong> {{ a.branch }} {{ a.year }}-{{ a.section }}
+                </p>
+
+                <p class="mb-1">
+                    <strong>Due Date:</strong> {{ a.due_date.strftime('%d-%m-%Y') }}
+                </p>
 
                 {% if expired %}
-                    <span class="badge bg-danger">Deadline Crossed</span>
+                    <span class="badge bg-danger">Submission Closed</span>
                 {% else %}
                     <span class="badge bg-success">Open</span>
                 {% endif %}
 
-                <div class="mt-2">
-                    <a href="{{ a.file_url }}" target="_blank" class="btn btn-sm btn-primary w-100 mb-2">
-                        Download Assignment
-                    </a>
+                <div class="mt-3">
+
+                    <!-- Preview + Download -->
+                    <div class="d-flex gap-2 flex-wrap mb-2">
+                        <a href="{{ a.file_url }}" target="_blank" class="btn btn-sm btn-primary flex-fill">
+                            Preview
+                        </a>
+                        <a href="{{ a.file_url }}?dl=true" class="btn btn-sm btn-secondary flex-fill">
+                            Download
+                        </a>
+                    </div>
 
                     {% if not expired %}
-                    <form method="POST" action="{{ url_for('submit_assignment', assignment_id=a.id) }}" enctype="multipart/form-data">
-                        <input type="file" name="file" class="form-control form-control-sm mb-2" required>
-                        <button type="submit" class="btn btn-sm btn-success w-100">Submit</button>
+                    <form method="POST"
+                          action="{{ url_for('submit_assignment', assignment_id=a.id) }}"
+                          enctype="multipart/form-data">
+
+                        <input type="file"
+                               name="file"
+                               class="form-control form-control-sm mb-2"
+                               required>
+
+                        <button type="submit"
+                                class="btn btn-sm btn-success w-100">
+                            Submit Assignment
+                        </button>
                     </form>
                     {% else %}
-                        <div class="text-danger fw-bold text-center">Submission Closed</div>
+                        <div class="text-danger fw-bold text-center">
+                            Deadline crossed
+                        </div>
                     {% endif %}
+
                 </div>
             </div>
         </div>
@@ -66,6 +99,7 @@
 {% if not shown %}
     <p class="text-muted">No available assignments.</p>
 {% endif %}
+
 </div>
 
 <!-- ================= SUBMITTED ASSIGNMENTS ================= -->
@@ -75,39 +109,56 @@
 {% if submissions %}
 {% for s in submissions %}
     {% set a = assignments | selectattr("id", "equalto", s.assignment_id) | first %}
-    <div class="col-md-6 mb-3">
+
+    <div class="col-lg-6 col-md-6 mb-3">
         <div class="card h-100 shadow-sm border-info">
             <div class="card-body">
                 <h5 class="card-title">{{ a.title }}</h5>
-                <p><strong>Due Date:</strong> {{ a.due_date.strftime('%d-%m-%Y') }}</p>
 
-                <p>
+                <p class="mb-1">
+                    <strong>Due Date:</strong> {{ a.due_date.strftime('%d-%m-%Y') }}
+                </p>
+
+                <p class="mb-1">
                     <strong>Plagiarism:</strong>
                     {% if s.plagiarism_score is not none %}
-                        {{ s.plagiarism_score }}%
+                        {% if s.plagiarism_score > 50 %}
+                            <span class="badge bg-danger">{{ s.plagiarism_score }}%</span>
+                        {% else %}
+                            <span class="badge bg-success">{{ s.plagiarism_score }}%</span>
+                        {% endif %}
                     {% else %}
                         <span class="badge bg-secondary">Pending</span>
                     {% endif %}
                 </p>
 
-                <p>
+                <p class="mb-2">
                     <strong>Marks:</strong>
                     {% if s.marks is not none %}
-                        {{ s.marks }}/5
+                        <span class="badge bg-primary">{{ s.marks }}/5</span>
                     {% else %}
                         <span class="badge bg-warning text-dark">Not Released</span>
                     {% endif %}
                 </p>
 
-                <a href="{{ s.file_url }}" target="_blank" class="btn btn-sm btn-primary w-100 mb-2">
-                    View Submission
-                </a>
+                <div class="d-flex gap-2 flex-wrap mb-2">
+                    <a href="{{ s.file_url }}" target="_blank" class="btn btn-sm btn-primary flex-fill">
+                        Preview
+                    </a>
+                    <a href="{{ s.file_url }}?dl=true" class="btn btn-sm btn-secondary flex-fill">
+                        Download
+                    </a>
+                </div>
 
                 {% if a.due_date >= current_date %}
-                <form method="POST" action="{{ url_for('delete_submission', submission_id=s.id) }}">
-                    <button class="btn btn-sm btn-danger w-100">Delete & Re-upload</button>
+                <form method="POST"
+                      action="{{ url_for('delete_submission', submission_id=s.id) }}">
+                    <button class="btn btn-sm btn-danger w-100">
+                        Delete & Re-upload
+                    </button>
                 </form>
                 {% endif %}
+
             </div>
         </div>
     </div>
@@ -117,6 +168,7 @@
 {% endif %}
 
 </div>
+
 </div>
 </body>
 </html>

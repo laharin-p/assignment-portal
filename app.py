@@ -5,6 +5,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import cloudinary, cloudinary.uploader
 import os
 from datetime import datetime, date
+import hashlib
 
 # ---------------- APP ----------------
 app = Flask(__name__)
@@ -62,6 +63,7 @@ class Submission(db.Model):
     student_id = db.Column(db.Integer, db.ForeignKey("student.id"))
     assignment_id = db.Column(db.Integer, db.ForeignKey("assignment.id"))
     file_url = db.Column(db.String(500))
+    file_hash = db.Column(db.String(64))
     submitted_on = db.Column(db.Date)
     plagiarism_score = db.Column(db.Float)
     marks = db.Column(db.Float)
@@ -73,9 +75,22 @@ class Submission(db.Model):
 with app.app_context():
     db.create_all()
 
-# ---------------- DUMMY PLAGIARISM ----------------
-def fake_plagiarism_check(filename):
-    return 12.5
+# ---------------- PLAGIARISM SYSTEM ----------------
+def calculate_hash(file):
+    file.seek(0)
+    content = file.read()
+    file.seek(0)
+    return hashlib.sha256(content).hexdigest()
+
+def plagiarism_check(assignment_id, file_hash):
+    existing = Submission.query.filter_by(
+        assignment_id=assignment_id,
+        file_hash=file_hash
+    ).first()
+
+    if existing:
+        return 95.0   # copied
+    return 5.0        # safe
 
 # ---------------- ROUTES ----------------
 @app.route("/")
@@ -86,6 +101,12 @@ def home():
 @app.route("/student/register", methods=["GET", "POST"])
 def student_register():
     if request.method == "POST":
+        if Student.query.filter(
+            (Student.email == request.form["email"]) |
+            (Student.roll_no == request.form["rollno"])
+        ).first():
+            return render_template("student_register.html", error="Roll number or Email already exists")
+
         student = Student(
             name=request.form["name"],
             roll_no=request.form["rollno"],
@@ -96,12 +117,6 @@ def student_register():
             email=request.form["email"],
             password=generate_password_hash(request.form["password"])
         )
-
-        if Student.query.filter(
-            (Student.email == student.email) |
-            (Student.roll_no == student.roll_no)
-        ).first():
-            return render_template("student_register.html", error="Roll number or Email already exists")
 
         db.session.add(student)
         db.session.commit()
@@ -135,7 +150,7 @@ def student_dashboard():
         "student_dashboard.html",
         assignments=Assignment.query.all(),
         submissions=Submission.query.filter_by(student_id=session["student_id"]).all(),
-        current_date=date.today()   # ✅ FIX
+        current_date=date.today()
     )
 
 @app.route("/student/submit/<int:assignment_id>", methods=["POST"])
@@ -155,34 +170,24 @@ def submit_assignment(assignment_id):
         flash("Assignment already submitted", "warning")
         return redirect(url_for("student_dashboard"))
 
+    file_hash = calculate_hash(file)
+    score = plagiarism_check(assignment_id, file_hash)
+
     upload = cloudinary.uploader.upload(file, resource_type="raw")
 
     submission = Submission(
         student_id=session["student_id"],
         assignment_id=assignment_id,
         file_url=upload["secure_url"],
+        file_hash=file_hash,
         submitted_on=date.today(),
-        plagiarism_score=fake_plagiarism_check(file.filename)
+        plagiarism_score=score
     )
 
     db.session.add(submission)
     db.session.commit()
-    flash("Assignment submitted successfully", "success")
-    return redirect(url_for("student_dashboard"))
 
-@app.route("/student/delete/<int:submission_id>", methods=["POST"])
-def delete_submission(submission_id):
-    if "student_id" not in session:
-        return redirect(url_for("student_login"))
-
-    sub = Submission.query.get_or_404(submission_id)
-    if sub.assignment.due_date >= date.today():
-        db.session.delete(sub)
-        db.session.commit()
-        flash("Submission deleted. You can re-upload.", "success")
-    else:
-        flash("Deadline passed. Cannot delete.", "danger")
-
+    flash(f"Assignment submitted | Plagiarism: {score}%", "success")
     return redirect(url_for("student_dashboard"))
 
 @app.route("/student/logout")
@@ -231,19 +236,24 @@ def teacher_dashboard():
     students = Student.query.all()
 
     pending = {}
+    submissions_map = {}
+
     for a in assignments:
-        submitted_ids = [s.student_id for s in Submission.query.filter_by(assignment_id=a.id)]
+        subs = Submission.query.filter_by(assignment_id=a.id).all()
+        submitted_ids = [s.student_id for s in subs]
+
         pending[a.id] = [s for s in students if s.id not in submitted_ids]
+        submissions_map[a.id] = subs
 
     return render_template(
         "teacher_dashboard.html",
         teacher=Teacher.query.get(session["teacher_id"]),
         assignments=assignments,
         pending=pending,
-        current_date=date.today()   # ✅ FIX
+        submissions_map=submissions_map,
+        current_date=date.today()
     )
 
-# ✅ MISSING ROUTE FIXED
 @app.route("/teacher/submissions/<int:assignment_id>")
 def teacher_submissions(assignment_id):
     if "teacher_id" not in session:
