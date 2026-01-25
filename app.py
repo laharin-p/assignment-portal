@@ -420,6 +420,23 @@ def teacher_upload():
 
     flash("Assignment uploaded", "success")
     return redirect(url_for("teacher_dashboard"))
+@app.route("/teacher/submissions/<int:assignment_id>")
+def teacher_submissions(assignment_id):
+    # ✅ Check if teacher is logged in
+    if "teacher_id" not in session:
+        return redirect(url_for("teacher_login"))
+
+    # Fetch assignment
+    assignment = Assignment.query.get_or_404(assignment_id)
+
+    # Fetch all submissions for this assignment
+    submissions = Submission.query.filter_by(assignment_id=assignment_id).all()
+
+    return render_template(
+        "teacher_submissions.html",
+        assignment=assignment,
+        submissions=submissions
+    )
 
 
 @app.route("/teacher/logout")
