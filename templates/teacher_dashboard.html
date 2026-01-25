@@ -29,7 +29,6 @@ details summary{
 <body>
 
 <!-- NAVBAR -->
-
 <nav class="navbar navbar-dark bg-dark px-3 d-flex justify-content-between">
     <span class="navbar-brand fs-4">Teacher Dashboard</span>
     <span class="text-white d-none d-md-block">
@@ -41,7 +40,6 @@ details summary{
 <div class="container mt-4">
 
 <!-- ================= UPLOAD ASSIGNMENT ================= -->
-
 <div class="card shadow p-4 mb-4">
 
 <h4 class="mb-3">📤 Upload Assignment</h4>
@@ -93,17 +91,14 @@ Upload Assignment
 </div>
 
 </form>
-
 </div>
 
 <!-- ================= ASSIGNMENTS ================= -->
-
 <div class="card shadow p-4">
 
 <h4 class="mb-3">📋 Assignments</h4>
 
 <!-- ========== MOBILE VIEW ========== -->
-
 <div class="d-md-none">
 
 {% for a in assignments %}
@@ -182,49 +177,32 @@ Submissions
 </div>
 
 <!-- ========== DESKTOP VIEW ========== -->
-
 <div class="table-responsive d-none d-md-block">
 
 <table class="table table-bordered table-hover align-middle">
-
 <thead class="table-dark">
 <tr>
 <th>Title</th>
 <th>Class</th>
 <th>Due Date</th>
-<th>Status</th>
 <th>Pending</th>
 <th>File</th>
 <th>Actions</th>
 </tr>
 </thead>
-
 <tbody>
 
 {% for a in assignments %}
 
 {% set days_left = (a.due_date - current_date).days %}
 
-<tr>
+<tr class="{% if days_left < 0 %}table-danger{% elif days_left <= 2 %}table-warning{% else %}table-success{% endif %}">
 
 <td>{{ a.title }}</td>
-
 <td>{{ a.branch }} {{ a.year }}-{{ a.section }}</td>
-
 <td>{{ a.due_date.strftime('%d-%m-%Y') }}</td>
 
 <td>
-{% if days_left < 0 %}
-<span class="badge bg-danger badge-status">Closed</span>
-{% elif days_left <= 2 %}
-<span class="badge bg-warning text-dark badge-status">Near</span>
-{% else %}
-<span class="badge bg-success badge-status">Open</span>
-{% endif %}
-</td>
-
-<td>
-
 {{ pending[a.id]|length }}
 
 <details class="mt-1">
@@ -237,11 +215,9 @@ Submissions
 {% endfor %}
 </ul>
 </details>
-
 </td>
 
 <td>
-
 <a href="{{ url_for('open_file') }}?url={{ a.file_url }}"
 target="_blank"
 class="btn btn-sm btn-primary file-btn">
@@ -252,23 +228,20 @@ Preview
 class="btn btn-sm btn-secondary file-btn">
 Download
 </a>
-
 </td>
 
 <td>
-
 <a href="{{ url_for('teacher_submissions', assignment_id=a.id) }}"
 class="btn btn-info btn-sm file-btn">
 View Submissions
 </a>
-
 </td>
 
 </tr>
 
 {% else %}
 <tr>
-<td colspan="7" class="text-center text-muted">
+<td colspan="6" class="text-center text-muted">
 No assignments uploaded yet
 </td>
 </tr>
@@ -276,7 +249,6 @@ No assignments uploaded yet
 
 </tbody>
 </table>
-
 </div>
 
 </div>

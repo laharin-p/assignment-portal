@@ -110,7 +110,6 @@ def plagiarism_check(assignment_id, file_hash):
     ).first()
     return 95.0 if exists else 5.0
 
-
 # ---------------- HOME ----------------
 
 @app.route("/")
@@ -119,13 +118,14 @@ def home():
 
 # ================= STUDENT =================
 
-@app.route("/student/register", methods=["GET", "POST"])
+@app.route("/student/register", methods=["GET","POST"])
 def student_register():
+
     if request.method == "POST":
 
         if Student.query.filter(
-            (Student.email == request.form["email"]) |
-            (Student.roll_no == request.form["rollno"])
+            (Student.email==request.form["email"]) |
+            (Student.roll_no==request.form["rollno"])
         ).first():
             return render_template("student_register.html", error="Already exists")
 
@@ -151,8 +151,9 @@ def student_register():
     return render_template("student_register.html")
 
 
-@app.route("/student/login", methods=["GET", "POST"])
+@app.route("/student/login", methods=["GET","POST"])
 def student_login():
+
     if request.method == "POST":
 
         student = Student.query.filter_by(
@@ -160,15 +161,19 @@ def student_login():
         ).first()
 
         if student and check_password_hash(student.password, request.form["password"]):
+
             session.clear()
             session["student_id"] = student.id
             session["student_name"] = student.name
+
             return redirect(url_for("student_dashboard"))
 
-        flash("Invalid credentials", "danger")
+        flash("Invalid credentials","danger")
 
     return render_template("student_login.html")
 
+
+# ---------------- STUDENT DASHBOARD (FIXED) ----------------
 
 @app.route("/student/dashboard")
 def student_dashboard():
@@ -177,15 +182,27 @@ def student_dashboard():
         return redirect(url_for("student_login"))
 
     student = Student.query.get(session["student_id"])
-    assignments = Assignment.query.all()
-    submissions = Submission.query.filter_by(student_id=student.id).all()
 
-    assignment_status = []
+    assignments = Assignment.query.filter_by(
+        year=student.year,
+        branch=student.branch,
+        section=student.section
+    ).all()
+
+    submissions = Submission.query.filter_by(
+        student_id=student.id
+    ).all()
+
+    submitted_ids = [s.assignment_id for s in submissions]
+
+    available_assignments = []
+    submitted_assignments = []
+
+    today = date.today()
 
     for a in assignments:
 
-        submitted = any(s.assignment_id == a.id for s in submissions)
-        days_left = (a.due_date - date.today()).days
+        days_left = (a.due_date - today).days
 
         if days_left < 0:
             color = "red"
@@ -193,27 +210,34 @@ def student_dashboard():
 
         elif days_left <= 2:
             color = "orange"
-            can_upload = not submitted
+            can_upload = True
 
         else:
             color = "green"
-            can_upload = not submitted
+            can_upload = True
 
-        assignment_status.append({
+        data = {
             "assignment": a,
-            "submitted": submitted,
             "days_left": days_left,
             "color": color,
             "can_upload": can_upload
-        })
+        }
+
+        if a.id in submitted_ids:
+            submitted_assignments.append(data)
+        else:
+            available_assignments.append(data)
 
     return render_template(
         "student_dashboard.html",
         student=student,
-        assignment_status=assignment_status,
-        current_date=date.today()
+        available_assignments=available_assignments,
+        submitted_assignments=submitted_assignments,
+        current_date=today
     )
 
+
+# ---------------- SUBMIT ASSIGNMENT (FIXED) ----------------
 
 @app.route("/student/submit/<int:assignment_id>", methods=["POST"])
 def submit_assignment(assignment_id):
@@ -221,14 +245,29 @@ def submit_assignment(assignment_id):
     if "student_id" not in session:
         return redirect(url_for("student_login"))
 
+    assignment = Assignment.query.get_or_404(assignment_id)
+
+    # block late
+    if assignment.due_date < date.today():
+        flash("Deadline crossed! Submission closed.","danger")
+        return redirect(url_for("student_dashboard"))
+
+    # block duplicate
+    if Submission.query.filter_by(
+        student_id=session["student_id"],
+        assignment_id=assignment_id
+    ).first():
+        flash("Already submitted!","warning")
+        return redirect(url_for("student_dashboard"))
+
     file = request.files.get("file")
 
     if not file:
-        flash("No file selected", "danger")
+        flash("No file selected","danger")
         return redirect(url_for("student_dashboard"))
 
     file_hash = calculate_hash(file)
-    score = plagiarism_check(assignment_id, file_hash)
+    score = plagiarism_check(assignment_id,file_hash)
 
     upload = cloudinary.uploader.upload(
         file,
@@ -249,7 +288,7 @@ def submit_assignment(assignment_id):
     db.session.add(submission)
     db.session.commit()
 
-    flash("Assignment submitted successfully", "success")
+    flash("Assignment submitted successfully","success")
 
     return redirect(url_for("student_dashboard"))
 
@@ -261,13 +300,13 @@ def student_logout():
 
 # ================= TEACHER =================
 
-@app.route("/teacher/register", methods=["GET", "POST"])
+@app.route("/teacher/register", methods=["GET","POST"])
 def teacher_register():
 
-    if request.method == "POST":
+    if request.method=="POST":
 
         if Teacher.query.filter_by(email=request.form["email"]).first():
-            flash("Teacher already exists", "danger")
+            flash("Teacher already exists","danger")
             return redirect(url_for("teacher_register"))
 
         teacher = Teacher(
@@ -279,16 +318,16 @@ def teacher_register():
         db.session.add(teacher)
         db.session.commit()
 
-        flash("Teacher registered successfully", "success")
+        flash("Teacher registered successfully","success")
         return redirect(url_for("teacher_login"))
 
     return render_template("teacher_register.html")
 
 
-@app.route("/teacher/login", methods=["GET", "POST"])
+@app.route("/teacher/login", methods=["GET","POST"])
 def teacher_login():
 
-    if request.method == "POST":
+    if request.method=="POST":
 
         teacher = Teacher.query.filter_by(
             email=request.form["email"]
@@ -302,10 +341,12 @@ def teacher_login():
 
             return redirect(url_for("teacher_dashboard"))
 
-        flash("Invalid credentials", "danger")
+        flash("Invalid credentials","danger")
 
     return render_template("teacher_login.html")
 
+
+# ---------------- TEACHER DASHBOARD ----------------
 
 @app.route("/teacher/dashboard")
 def teacher_dashboard():
@@ -348,7 +389,7 @@ def teacher_upload():
     file = request.files.get("file")
 
     if not file:
-        flash("No file uploaded", "danger")
+        flash("No file uploaded","danger")
         return redirect(url_for("teacher_dashboard"))
 
     upload = cloudinary.uploader.upload(
@@ -364,7 +405,7 @@ def teacher_upload():
         branch=request.form["branch"],
         section=request.form["section"],
         due_date=datetime.strptime(
-            request.form["due_date"], "%Y-%m-%d"
+            request.form["due_date"],"%Y-%m-%d"
         ).date(),
         file_url=upload["secure_url"]
     )
@@ -372,7 +413,7 @@ def teacher_upload():
     db.session.add(assignment)
     db.session.commit()
 
-    flash("Assignment uploaded", "success")
+    flash("Assignment uploaded","success")
 
     return redirect(url_for("teacher_dashboard"))
 

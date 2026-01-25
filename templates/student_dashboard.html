@@ -34,94 +34,61 @@ body { background:#f8f9fa; }
 <div class="container my-4">
 
 <!-- ================= AVAILABLE ASSIGNMENTS ================= -->
-
 <h4 class="mb-3">📄 Available Assignments</h4>
 <div class="row g-3">
 
 {% set any_open = false %}
 
-{% for item in assignment_status %}
+{% for item in available_assignments %}
+    {% set any_open = true %}
 
-{% if not item.submitted %}
+    {% if item.color == "red" %}
+        {% set border_class = "card-border-red" %}
+    {% elif item.color == "orange" %}
+        {% set border_class = "card-border-orange" %}
+    {% else %}
+        {% set border_class = "card-border-green" %}
+    {% endif %}
 
-{% set any_open = true %}
+    <div class="col-md-6">
+        <div class="card shadow-sm {{ border_class }}">
+            <div class="card-body">
+                <h5 class="card-title">{{ item.assignment.title }}</h5>
 
-{% if item.color == "red" %}
-    {% set border_class = "card-border-red" %}
-{% elif item.color == "orange" %}
-    {% set border_class = "card-border-orange" %}
-{% else %}
-    {% set border_class = "card-border-green" %}
-{% endif %}
+                <p class="mb-1">
+                    <strong>Class:</strong> {{ item.assignment.branch }} {{ item.assignment.year }}-{{ item.assignment.section }}
+                </p>
 
-<div class="col-md-6">
+                <p class="mb-1">
+                    <strong>Due Date:</strong> {{ item.assignment.due_date.strftime('%d-%m-%Y') }}
+                </p>
 
-<div class="card shadow-sm {{ border_class }}">
-<div class="card-body">
+                {% if item.color == "red" %}
+                    <span class="badge bg-danger badge-deadline">Deadline Crossed</span>
+                {% elif item.color == "orange" %}
+                    <span class="badge bg-warning text-dark badge-deadline">Deadline Near</span>
+                {% else %}
+                    <span class="badge bg-success badge-deadline">Open</span>
+                {% endif %}
 
-<h5 class="card-title">{{ item.assignment.title }}</h5>
+                <!-- File buttons -->
+                <div class="d-flex gap-2 mt-3 flex-wrap">
+                    <a href="{{ url_for('open_file') }}?url={{ item.assignment.file_url }}" target="_blank" class="btn btn-primary btn-sm file-btn flex-fill">Preview</a>
+                    <a href="{{ url_for('open_file') }}?url={{ item.assignment.file_url }}&dl=true" class="btn btn-secondary btn-sm file-btn flex-fill">Download</a>
+                </div>
 
-<p class="mb-1">
-<strong>Class:</strong>
-{{ item.assignment.branch }} {{ item.assignment.year }}-{{ item.assignment.section }}
-</p>
-
-<p class="mb-1">
-<strong>Due Date:</strong>
-{{ item.assignment.due_date.strftime('%d-%m-%Y') }}
-</p>
-
-{% if item.color == "red" %}
-<span class="badge bg-danger badge-deadline">Deadline Crossed</span>
-{% elif item.color == "orange" %}
-<span class="badge bg-warning text-dark badge-deadline">Deadline Near</span>
-{% else %}
-<span class="badge bg-success badge-deadline">Open</span>
-{% endif %}
-
-<!-- File buttons -->
-
-<div class="d-flex gap-2 mt-3 flex-wrap">
-
-<a href="{{ url_for('open_file') }}?url={{ item.assignment.file_url }}" target="_blank"
-class="btn btn-primary btn-sm file-btn flex-fill">
-Preview
-</a>
-
-<a href="{{ url_for('open_file') }}?url={{ item.assignment.file_url }}&dl=true"
-class="btn btn-secondary btn-sm file-btn flex-fill">
-Download
-</a>
-
-</div>
-
-<!-- Upload form -->
-
-{% if item.can_upload %}
-<form method="POST"
-action="{{ url_for('submit_assignment', assignment_id=item.assignment.id) }}"
-enctype="multipart/form-data"
-class="mt-3">
-
-<input type="file" name="file" class="form-control form-control-sm mb-2" required>
-
-<button type="submit" class="btn btn-success w-100 btn-sm">
-Submit Assignment
-</button>
-
-</form>
-
-{% else %}
-<div class="text-danger fw-bold text-center mt-3">
-Submission Closed
-</div>
-{% endif %}
-
-</div>
-</div>
-</div>
-
-{% endif %}
+                <!-- Upload form -->
+                {% if item.can_upload %}
+                    <form method="POST" action="{{ url_for('submit_assignment', assignment_id=item.assignment.id) }}" enctype="multipart/form-data" class="mt-3">
+                        <input type="file" name="file" class="form-control form-control-sm mb-2" required>
+                        <button type="submit" class="btn btn-success w-100 btn-sm">Submit Assignment</button>
+                    </form>
+                {% else %}
+                    <div class="text-danger fw-bold text-center mt-3">Submission Closed</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
 {% endfor %}
 
 {% if not any_open %}
@@ -131,65 +98,43 @@ Submission Closed
 </div>
 
 <!-- ================= SUBMITTED ASSIGNMENTS ================= -->
-
 <h4 class="mt-5 mb-3">✅ Submitted Assignments</h4>
-
 <div class="row g-3">
 
-{% if submissions %}
+{% if submitted_assignments %}
+    {% for item in submitted_assignments %}
+        <div class="col-md-6">
+            <div class="card shadow-sm border-info">
+                <div class="card-body">
+                    <h5 class="card-title">{{ item.assignment.title }}</h5>
 
-{% for s in submissions %}
+                    <p class="mb-1">
+                        <strong>Due Date:</strong> {{ item.assignment.due_date.strftime('%d-%m-%Y') }}
+                    </p>
 
-<div class="col-md-6">
+                    <p class="mb-1">
+                        <strong>Plagiarism:</strong>
+                        {% if item.plagiarism_score > 50 %}
+                            <span class="badge bg-danger">{{ item.plagiarism_score }}%</span>
+                        {% else %}
+                            <span class="badge bg-success">{{ item.plagiarism_score }}%</span>
+                        {% endif %}
+                    </p>
 
-<div class="card shadow-sm border-info">
-<div class="card-body">
-
-<h5 class="card-title">{{ s.assignment.title }}</h5>
-
-<p class="mb-1">
-<strong>Due Date:</strong>
-{{ s.assignment.due_date.strftime('%d-%m-%Y') }}
-</p>
-
-<p class="mb-1">
-<strong>Plagiarism:</strong>
-
-{% if s.plagiarism_score > 50 %}
-<span class="badge bg-danger">{{ s.plagiarism_score }}%</span>
+                    <div class="d-flex gap-2 mt-2 flex-wrap">
+                        <a href="{{ url_for('open_file') }}?url={{ item.file_url }}" target="_blank" class="btn btn-primary btn-sm file-btn flex-fill">Preview</a>
+                        <a href="{{ url_for('open_file') }}?url={{ item.file_url }}&dl=true" class="btn btn-secondary btn-sm file-btn flex-fill">Download</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endfor %}
 {% else %}
-<span class="badge bg-success">{{ s.plagiarism_score }}%</span>
-{% endif %}
-
-</p>
-
-<div class="d-flex gap-2 mt-2 flex-wrap">
-
-<a href="{{ url_for('open_file') }}?url={{ s.file_url }}" target="_blank"
-class="btn btn-primary btn-sm file-btn flex-fill">
-Preview
-</a>
-
-<a href="{{ url_for('open_file') }}?url={{ s.file_url }}&dl=true"
-class="btn btn-secondary btn-sm file-btn flex-fill">
-Download
-</a>
-
-</div>
-
-</div>
-</div>
-</div>
-
-{% endfor %}
-
-{% else %}
-<p class="text-muted">No submissions yet.</p>
+    <p class="text-muted">No submissions yet.</p>
 {% endif %}
 
 </div>
 
 </div>
-
 </body>
 </html>
