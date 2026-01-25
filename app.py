@@ -146,7 +146,7 @@ def student_register():
         session["student_id"] = student.id
         session["student_name"] = student.name
 
-        return redirect(url_for("student_dashboard"))
+        return redirect(url_for("student_login"))
 
     return render_template("student_register.html")
 
