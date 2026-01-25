@@ -5,9 +5,7 @@
 <meta charset="UTF-8">
 <title>Student Dashboard | Assignment Portal</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-
 <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-
 <style>
 body { font-family: Arial, sans-serif; background: #f8f9fa; padding: 20px; }
 
@@ -62,6 +60,7 @@ a.btn {
 
 {% if available_assignments %}
 <table>
+
 <tr>
     <th>Title</th>
     <th>Due In (Days)</th>
@@ -69,7 +68,7 @@ a.btn {
 </tr>
 
 {% for item in available_assignments %}
-<tr style="background-color: {% if item.color == 'green' %}#d4edda{% elif item.color == 'orange' %}#fff3cd{% else %}#f8d7da{% endif %}">
+<tr style="background-color: {{ item.color }}">
 
 <td>{{ item.assignment.title }}</td>
 <td>{{ item.days_left }}</td>
@@ -103,6 +102,7 @@ a.btn {
 
 {% if submitted_assignments %}
 <table>
+
 <tr>
     <th>Title</th>
     <th>Submitted On</th>
@@ -113,7 +113,7 @@ a.btn {
 </tr>
 
 {% for item in submitted_assignments %}
-<tr style="background-color: {% if item.color == 'green' %}#d4edda{% elif item.color == 'orange' %}#fff3cd{% else %}#f8d7da{% endif %}">
+<tr style="background-color: {{ item.color }}">
 
 <td>{{ item.assignment.title }}</td>
 <td>{{ item.submitted_on }}</td>
@@ -121,13 +121,15 @@ a.btn {
 <td>{{ item.days_left }}</td>
 
 <td>
-<!-- ✅ Direct Cloudinary link -->
+<!-- ✅ Mobile-friendly direct link -->
 <a class="btn view-btn"
    href="{{ item.file_url }}"
-   target="_blank">
-   Open
+   target="_blank"
+   rel="noopener noreferrer">
+   Open / Preview
 </a>
-<a class="btn btn-secondary"
+<!-- Optional: download button for desktop only -->
+<a class="btn btn-secondary d-none d-md-inline"
    href="{{ item.file_url }}"
    download>
    Download
@@ -156,13 +158,11 @@ a.btn {
 {% with messages = get_flashed_messages(with_categories=true) %}
 {% if messages %}
 <div style="position: fixed; top: 20px; right: 20px; max-width: 300px; z-index: 1000;">
-
 {% for category, message in messages %}
 <div class="flash {{ category }}">
     {{ message }}
 </div>
 {% endfor %}
-
 </div>
 
 <script>
