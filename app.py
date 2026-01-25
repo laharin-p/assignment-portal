@@ -15,13 +15,11 @@ app.secret_key = os.environ.get("SECRET_KEY", "dev_secret_key")
 DATABASE_URL = os.environ.get("DATABASE_URL")
 if not DATABASE_URL:
     raise RuntimeError("DATABASE_URL not set")
-
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
 app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-
 db = SQLAlchemy(app)
 
 # ---------------- CLOUDINARY ----------------
@@ -214,7 +212,7 @@ def submit_assignment(assignment_id):
     submission = Submission(
         student_id=session["student_id"],
         assignment_id=assignment_id,
-        file_url=upload["secure_url"],  # ✅ Cloudinary secure URL
+        file_url=upload["secure_url"],
         file_hash=file_hash,
         submitted_on=date.today(),
         plagiarism_score=score
@@ -223,11 +221,9 @@ def submit_assignment(assignment_id):
     db.session.commit()
     flash("Submitted successfully", "success")
     return redirect(url_for("student_dashboard"))
-    
+
 @app.route("/student/submission/delete/<int:submission_id>", methods=["POST"])
 def delete_submission(submission_id):
-    from models import Submission  # adjust import according to your setup
-
     student_id = session.get("student_id")
     if not student_id:
         flash("Please login first!", "warning")
@@ -238,17 +234,17 @@ def delete_submission(submission_id):
         flash("Submission not found!", "danger")
         return redirect(url_for("student_dashboard"))
 
-    # Optionally, delete file from cloudinary here if needed
     db.session.delete(submission)
     db.session.commit()
     flash("Submission deleted successfully!", "success")
     return redirect(url_for("student_dashboard"))
-# ---------------- STUDENT LOGOUT ----------------
+
 @app.route("/student/logout")
 def student_logout():
-    session.pop("student_id", None)  # remove student session
+    session.pop("student_id", None)
     flash("Logged out successfully!", "success")
-    return redirect(url_for("student_login"))  # redirect to student login page
+    return redirect(url_for("student_login"))
+
 # ---------------- TEACHER ROUTES ----------------
 @app.route("/teacher/dashboard")
 def teacher_dashboard():
@@ -290,7 +286,7 @@ def teacher_upload():
         branch=request.form["branch"].upper(),
         section=request.form["section"].upper(),
         due_date=datetime.strptime(request.form["due_date"], "%Y-%m-%d").date(),
-        file_url=upload["secure_url"]   # ✅ Cloudinary URL
+        file_url=upload["secure_url"]
     )
 
     db.session.add(assignment)
@@ -307,8 +303,12 @@ def teacher_submissions(assignment_id):
     submissions = Submission.query.filter_by(assignment_id=assignment_id).all()
 
     return render_template("teacher_submissions.html", assignment=assignment, submissions=submissions)
+
 @app.route("/teacher/logout")
 def teacher_logout():
     session.pop("teacher_id", None)
     flash("Logged out successfully", "success")
     return redirect(url_for("teacher_login"))
+
+if __name__ == "__main__":
+    app.run(debug=True)
