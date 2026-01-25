@@ -69,7 +69,7 @@ class Submission(db.Model):
     file_url = db.Column(db.String(500))
     file_hash = db.Column(db.String(64))
     submitted_on = db.Column(db.Date)
-    plagiarism_score = db.Column(db.Float)
+    plagiarism_score = db.Column(db.Float, default=0)
 
     assignment = db.relationship("Assignment")
     student = db.relationship("Student")
@@ -182,6 +182,7 @@ def student_login():
     return render_template("student_login.html")
 
 
+
 @app.route("/student/dashboard")
 def student_dashboard():
 
@@ -200,7 +201,7 @@ def student_dashboard():
         student_id=student.id
     ).all()
 
-    submitted_ids = [s.assignment_id for s in submissions]
+    submitted_map = {s.assignment_id: s for s in submissions}
 
     today = date.today()
 
@@ -221,17 +222,23 @@ def student_dashboard():
             color = "green"
             can_upload = True
 
-        data = {
-            "assignment": a,
-            "days_left": days_left,
-            "color": color,
-            "can_upload": can_upload
-        }
-
-        if a.id in submitted_ids:
-            submitted_assignments.append(data)
+        if a.id in submitted_map:
+            s = submitted_map[a.id]
+            submitted_assignments.append({
+                "assignment": a,
+                "submitted_on": s.submitted_on,
+                "file_url": s.file_url,
+                "plagiarism_score": s.plagiarism_score or 0,
+                "days_left": days_left,
+                "color": color
+            })
         else:
-            available_assignments.append(data)
+            available_assignments.append({
+                "assignment": a,
+                "days_left": days_left,
+                "color": color,
+                "can_upload": can_upload
+            })
 
     return render_template(
         "student_dashboard.html",
@@ -240,7 +247,6 @@ def student_dashboard():
         submitted_assignments=submitted_assignments,
         current_date=today
     )
-
 
 @app.route("/student/submit/<int:assignment_id>", methods=["POST"])
 def submit_assignment(assignment_id):
@@ -295,7 +301,9 @@ def submit_assignment(assignment_id):
 
 @app.route("/student/logout")
 def student_logout():
-    session.clear()
+    session.pop("student_id", None)
+    session.pop("student_name", None)
+    flash("Logged out successfully", "info")
     return redirect(url_for("student_login"))
 
 # ================= TEACHER =================
@@ -359,7 +367,6 @@ def teacher_dashboard():
         return redirect(url_for("teacher_login"))
 
     teacher = Teacher.query.get(session["teacher_id"])
-
     assignments = Assignment.query.all()
     students = Student.query.all()
 
