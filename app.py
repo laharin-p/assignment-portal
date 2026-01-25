@@ -223,6 +223,12 @@ def submit_assignment(assignment_id):
     db.session.commit()
     flash("Submitted successfully", "success")
     return redirect(url_for("student_dashboard"))
+# Student Logout
+@app.route("/student/logout")
+def logout_student():
+    session.pop("student_id", None)  # remove student session
+    flash("Logged out successfully!", "success")
+    return redirect(url_for("student_login"))  # redirect to student login page
 
 # ---------------- TEACHER ROUTES ----------------
 @app.route("/teacher/dashboard")
@@ -282,3 +288,8 @@ def teacher_submissions(assignment_id):
     submissions = Submission.query.filter_by(assignment_id=assignment_id).all()
 
     return render_template("teacher_submissions.html", assignment=assignment, submissions=submissions)
+@app.route("/teacher/logout")
+def teacher_logout():
+    session.pop("teacher_id", None)
+    flash("Logged out successfully", "success")
+    return redirect(url_for("teacher_login"))
