@@ -223,13 +223,12 @@ def submit_assignment(assignment_id):
     db.session.commit()
     flash("Submitted successfully", "success")
     return redirect(url_for("student_dashboard"))
-# Student Logout
+# ---------------- STUDENT LOGOUT ----------------
 @app.route("/student/logout")
-def logout_student():
+def student_logout():
     session.pop("student_id", None)  # remove student session
     flash("Logged out successfully!", "success")
     return redirect(url_for("student_login"))  # redirect to student login page
-
 # ---------------- TEACHER ROUTES ----------------
 @app.route("/teacher/dashboard")
 def teacher_dashboard():
