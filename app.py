@@ -182,6 +182,7 @@ def student_login():
 
 
 # ================= STUDENT DASHBOARD =================
+
 @app.route("/student/dashboard")
 def student_dashboard():
     if "student_id" not in session:
@@ -189,12 +190,14 @@ def student_dashboard():
 
     student = Student.query.get(session["student_id"])
 
+    # Fetch assignments for the student's year, branch, section
     assignments = Assignment.query.filter_by(
         year=student.year,
         branch=student.branch,
         section=student.section
     ).all()
 
+    # Fetch submissions by this student
     submissions = Submission.query.filter_by(student_id=student.id).all()
     submitted_map = {s.assignment_id: s for s in submissions}
 
@@ -221,7 +224,7 @@ def student_dashboard():
                 "assignment": a,
                 "submitted_on": s.submitted_on,
                 "file_url": s.file_url,
-                "plagiarism_score": s.plagiarism_score or 0,
+                "plagiarism_score": s.plagiarism_score or 0,  # prevent UndefinedError
                 "days_left": days_left,
                 "color": color
             })
@@ -299,7 +302,6 @@ def student_logout():
     session.pop("student_name", None)
     flash("Logged out successfully", "info")
     return redirect(url_for("student_login"))
-
 
 # ================= TEACHER =================
 @app.route("/teacher/register", methods=["GET","POST"])
