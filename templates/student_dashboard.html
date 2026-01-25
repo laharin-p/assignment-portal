@@ -4,17 +4,25 @@
 <head>
 <meta charset="UTF-8">
 <title>Student Dashboard | Assignment Portal</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
 <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 
 <style>
+body { font-family: Arial, sans-serif; background: #f8f9fa; padding: 20px; }
+
+h1, h2 { color: #333; }
+
 table {
     width: 100%;
     border-collapse: collapse;
+    margin-bottom: 20px;
 }
 
 th, td {
     padding: 10px;
     text-align: center;
+    border: 1px solid #dee2e6;
 }
 
 a.btn {
@@ -53,7 +61,7 @@ a.btn {
 <h2>Available Assignments</h2>
 
 {% if available_assignments %}
-<table border="1">
+<table>
 
 <tr>
     <th>Title</th>
@@ -74,7 +82,7 @@ a.btn {
       enctype="multipart/form-data">
 
     <input type="file" name="file" required>
-    <button type="submit">Upload</button>
+    <button type="submit" class="btn view-btn">Upload</button>
 
 </form>
 {% else %}
@@ -95,7 +103,7 @@ a.btn {
 <h2>Submitted Assignments</h2>
 
 {% if submitted_assignments %}
-<table border="1">
+<table>
 
 <tr>
     <th>Title</th>
@@ -115,7 +123,7 @@ a.btn {
 <td>{{ item.days_left }}</td>
 
 <td>
-<!-- ✅ FIXED: Direct Cloudinary link -->
+<!-- ✅ Direct Cloudinary link -->
 <a class="btn view-btn"
    href="{{ item.file_url }}"
    target="_blank">
@@ -145,7 +153,7 @@ a.btn {
 
 {% with messages = get_flashed_messages(with_categories=true) %}
 {% if messages %}
-<div style="position: fixed; top: 20px; right: 20px; max-width: 300px;">
+<div style="position: fixed; top: 20px; right: 20px; max-width: 300px; z-index: 1000;">
 
 {% for category, message in messages %}
 <div class="flash {{ category }}">
