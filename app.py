@@ -8,10 +8,12 @@ from datetime import datetime, date
 import hashlib
 
 # ---------------- APP ----------------
+
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev_secret_key")
 
 # ---------------- DATABASE ----------------
+
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
 if not DATABASE_URL:
@@ -22,9 +24,11 @@ if DATABASE_URL.startswith("postgres://"):
 
 app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
 db = SQLAlchemy(app)
 
 # ---------------- CLOUDINARY ----------------
+
 cloudinary.config(
     cloud_name=os.environ.get("CLOUDINARY_CLOUD_NAME"),
     api_key=os.environ.get("CLOUDINARY_API_KEY"),
@@ -78,18 +82,6 @@ class Submission(db.Model):
 
 with app.app_context():
     db.create_all()
-
-# ---------------- FILE REDIRECT (MOBILE SAFE) ----------------
-
-@app.route("/direct_file")
-def direct_file():
-    url = request.args.get("url")
-
-    if not url:
-        flash("File not found", "danger")
-        return redirect(url_for("student_dashboard"))
-
-    return redirect(url + "?fl_attachment=false")
 
 # ---------------- PLAGIARISM ----------------
 
@@ -150,7 +142,6 @@ def student_register():
         session["student_id"] = student.id
         session["student_name"] = student.name
 
-        flash("Registered successfully", "success")
         return redirect(url_for("student_dashboard"))
 
     return render_template("student_register.html")
@@ -167,10 +158,8 @@ def student_login():
         student = Student.query.filter_by(email=email).first()
 
         if student and check_password_hash(student.password, password):
-
             session["student_id"] = student.id
             session["student_name"] = student.name
-
             return redirect(url_for("student_dashboard"))
 
         flash("Invalid credentials", "danger")
@@ -239,8 +228,7 @@ def student_dashboard():
         "student_dashboard.html",
         student=student,
         available_assignments=available_assignments,
-        submitted_assignments=submitted_assignments,
-        current_date=today
+        submitted_assignments=submitted_assignments
     )
 
 
@@ -260,7 +248,6 @@ def submit_assignment(assignment_id):
         student_id=session["student_id"],
         assignment_id=assignment_id
     ).first():
-
         flash("Already submitted", "warning")
         return redirect(url_for("student_dashboard"))
 
@@ -273,11 +260,13 @@ def submit_assignment(assignment_id):
     file_hash = calculate_hash(file)
     score = plagiarism_check(assignment_id, file_hash)
 
+    # ✅ AUTO upload (browser preview works)
+
     upload = cloudinary.uploader.upload(
         file,
         resource_type="auto",
         use_filename=True,
-        unique_filename=False
+        unique_filename=True
     )
 
     submission = Submission(
@@ -285,7 +274,7 @@ def submit_assignment(assignment_id):
         assignment_id=assignment_id,
         file_url=upload["secure_url"],
         file_hash=file_hash,
-        submitted_on=today,
+        submitted_on=date.today(),
         plagiarism_score=score
     )
 
@@ -304,12 +293,12 @@ def delete_submission(submission_id):
 
     submission = Submission.query.get_or_404(submission_id)
 
-    filename = submission.file_url.split("/")[-1]
+    # ✅ Correct delete for auto resource
 
-    public_id = filename.split(".")[0]
+    public_id = submission.file_url.split("/")[-1].split(".")[0]
 
     try:
-        cloudinary.uploader.destroy(public_id, resource_type="raw")
+        cloudinary.uploader.destroy(public_id)
     except:
         pass
 
@@ -347,7 +336,6 @@ def teacher_register():
         db.session.add(teacher)
         db.session.commit()
 
-        flash("Registered", "success")
         return redirect(url_for("teacher_login"))
 
     return render_template("teacher_register.html")
@@ -367,7 +355,6 @@ def teacher_login():
 
             session["teacher_id"] = teacher.id
             session["teacher_name"] = teacher.name
-
             return redirect(url_for("teacher_dashboard"))
 
         flash("Invalid login", "danger")
@@ -396,8 +383,7 @@ def teacher_dashboard():
         "teacher_dashboard.html",
         teacher=teacher,
         assignments=assignments,
-        pending=pending,
-        current_date=date.today()
+        pending=pending
     )
 
 
@@ -417,7 +403,7 @@ def teacher_upload():
         file,
         resource_type="auto",
         use_filename=True,
-        unique_filename=False
+        unique_filename=True
     )
 
     assignment = Assignment(
@@ -436,43 +422,10 @@ def teacher_upload():
     return redirect(url_for("teacher_dashboard"))
 
 
-@app.route("/teacher/submissions/<int:assignment_id>")
-def teacher_submissions(assignment_id):
-
-    if "teacher_id" not in session:
-        return redirect(url_for("teacher_login"))
-
-    assignment = Assignment.query.get_or_404(assignment_id)
-    submissions = Submission.query.filter_by(assignment_id=assignment_id).all()
-
-    return render_template(
-        "teacher_submissions.html",
-        assignment=assignment,
-        submissions=submissions,
-        current_date=date.today()
-    )
-
-
 @app.route("/teacher/logout")
 def teacher_logout():
     session.clear()
     return redirect(url_for("teacher_login"))
-
-# ---------------- DEBUG ----------------
-
-@app.route("/debug/assignments")
-def debug_assignments():
-    return jsonify([
-        {
-            "id": a.id,
-            "title": a.title,
-            "year": a.year,
-            "branch": a.branch,
-            "section": a.section,
-            "due_date": str(a.due_date)
-        }
-        for a in Assignment.query.all()
-    ])
 
 # ---------------- RUN ----------------
 
