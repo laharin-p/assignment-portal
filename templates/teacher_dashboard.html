@@ -85,7 +85,7 @@ class="row g-3">
 </div>
 
 <div class="col-md-12">
-<button type="submit" class="btn btn-primary w-100 w-md-auto">
+<button type="submit" class="btn btn-primary">
 Upload Assignment
 </button>
 </div>
@@ -151,13 +151,15 @@ Pending: {{ pending[a.id]|length }} students
 
 <div class="mt-3 d-flex gap-2 flex-wrap">
 
-<a href="{{ url_for('open_file') }}?url={{ a.file_url }}"
+<!-- ✅ DIRECT CLOUDINARY LINK -->
+<a href="{{ a.file_url }}"
 target="_blank"
 class="btn btn-sm btn-primary file-btn flex-fill">
-Preview
+Preview / Open
 </a>
 
-<a href="{{ url_for('open_file') }}?url={{ a.file_url }}&dl=true"
+<a href="{{ a.file_url }}"
+download
 class="btn btn-sm btn-secondary file-btn flex-fill">
 Download
 </a>
@@ -180,6 +182,7 @@ Submissions
 <div class="table-responsive d-none d-md-block">
 
 <table class="table table-bordered table-hover align-middle">
+
 <thead class="table-dark">
 <tr>
 <th>Title</th>
@@ -190,6 +193,7 @@ Submissions
 <th>Actions</th>
 </tr>
 </thead>
+
 <tbody>
 
 {% for a in assignments %}
@@ -218,23 +222,28 @@ Submissions
 </td>
 
 <td>
-<a href="{{ url_for('open_file') }}?url={{ a.file_url }}"
+
+<a href="{{ a.file_url }}"
 target="_blank"
 class="btn btn-sm btn-primary file-btn">
 Preview
 </a>
 
-<a href="{{ url_for('open_file') }}?url={{ a.file_url }}&dl=true"
+<a href="{{ a.file_url }}"
+download
 class="btn btn-sm btn-secondary file-btn">
 Download
 </a>
+
 </td>
 
 <td>
+
 <a href="{{ url_for('teacher_submissions', assignment_id=a.id) }}"
 class="btn btn-info btn-sm file-btn">
 View Submissions
 </a>
+
 </td>
 
 </tr>
@@ -249,6 +258,7 @@ No assignments uploaded yet
 
 </tbody>
 </table>
+
 </div>
 
 </div>

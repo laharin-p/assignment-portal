@@ -5,6 +5,7 @@
 <meta charset="UTF-8">
 <title>Student Dashboard | Assignment Portal</title>
 <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
 <style>
 table {
     width: 100%;
@@ -53,6 +54,7 @@ a.btn {
 
 {% if available_assignments %}
 <table border="1">
+
 <tr>
     <th>Title</th>
     <th>Due In (Days)</th>
@@ -82,6 +84,7 @@ a.btn {
 
 </tr>
 {% endfor %}
+
 </table>
 {% else %}
 <p>No assignments available.</p>
@@ -112,11 +115,11 @@ a.btn {
 <td>{{ item.days_left }}</td>
 
 <td>
-<!-- ✅ Mobile + Desktop Safe -->
-<a class="btn view-btn" 
-   href="{{ url_for('direct_file') }}?url={{ item.file_url }}" 
+<!-- ✅ FIXED: Direct Cloudinary link -->
+<a class="btn view-btn"
+   href="{{ item.file_url }}"
    target="_blank">
-   Open / Download
+   Open
 </a>
 </td>
 
@@ -132,8 +135,8 @@ a.btn {
 
 </tr>
 {% endfor %}
-</table>
 
+</table>
 {% else %}
 <p>No submissions yet.</p>
 {% endif %}

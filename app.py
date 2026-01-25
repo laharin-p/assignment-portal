@@ -361,7 +361,6 @@ def teacher_login():
 
     return render_template("teacher_login.html")
 
-
 @app.route("/teacher/dashboard")
 def teacher_dashboard():
 
@@ -383,7 +382,8 @@ def teacher_dashboard():
         "teacher_dashboard.html",
         teacher=teacher,
         assignments=assignments,
-        pending=pending
+        pending=pending,
+        current_date=date.today()   # ✅ IMPORTANT
     )
 
 
