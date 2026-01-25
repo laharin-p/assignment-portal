@@ -275,7 +275,7 @@ def submit_assignment(assignment_id):
 
     upload = cloudinary.uploader.upload(
         file,
-        resource_type="raw",
+        resource_type="auto",
         use_filename=True,
         unique_filename=False
     )
@@ -415,7 +415,7 @@ def teacher_upload():
 
     upload = cloudinary.uploader.upload(
         file,
-        resource_type="raw",
+        resource_type="auto",
         use_filename=True,
         unique_filename=False
     )
