@@ -1,5 +1,5 @@
 
-from flask import Flask, render_template, request, redirect, session, url_for, flash, Response
+from flask import Flask, render_template, request, redirect, session, url_for, flash, Response, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 import cloudinary, cloudinary.uploader
@@ -7,6 +7,8 @@ import os
 from datetime import datetime, date
 import hashlib
 import requests
+import mimetypes
+from urllib.parse import urlparse
 
 # ---------------- APP ----------------
 app = Flask(__name__)
@@ -80,12 +82,38 @@ def open_file():
     url = request.args.get("url")
     if not url:
         return "File not found", 404
-    r = requests.get(url, stream=True)
-    return Response(
-        r.iter_content(1024),
-        content_type=r.headers.get("Content-Type", "application/octet-stream"),
-        headers={"Content-Disposition": "inline"}
-    )
+    
+    try:
+        r = requests.get(url, stream=True)
+        
+        # Get filename from URL
+        parsed_url = urlparse(url)
+        filename = parsed_url.path.split("/")[-1]
+        
+        # Determine MIME type based on file extension
+        mime_type, encoding = mimetypes.guess_type(filename)
+        
+        # If we can't determine MIME type, fall back to Cloudinary's header or default
+        if not mime_type:
+            mime_type = r.headers.get("Content-Type", "application/octet-stream")
+        
+        # Create response with proper headers
+        response = Response(
+            r.iter_content(1024),
+            content_type=mime_type
+        )
+        
+        # Set Content-Disposition based on request (inline for viewing, attachment for download)
+        disposition = request.args.get("disposition", "inline")
+        if disposition == "download":
+            response.headers["Content-Disposition"] = f"attachment; filename={filename}"
+        else:
+            response.headers["Content-Disposition"] = f"inline; filename={filename}"
+            
+        return response
+        
+    except Exception as e:
+        return f"Error loading file: {str(e)}", 500
 
 # ---------------- PLAGIARISM ----------------
 def calculate_hash(file):
@@ -113,22 +141,26 @@ def student_register():
         return redirect(url_for("student_dashboard"))
 
     if request.method == "POST":
+        # Normalize email for case-insensitive comparison
+        email = request.form["email"].strip().lower()
+        roll_no = request.form["rollno"].strip()
+        
         exists = Student.query.filter(
-            (Student.email == request.form["email"]) |
-            (Student.roll_no == request.form["rollno"])
+            (Student.email == email) |
+            (Student.roll_no == roll_no)
         ).first()
         if exists:
             flash("Student already exists","danger")
             return redirect(url_for("student_register"))
 
         student = Student(
-            name=request.form["name"],
-            roll_no=request.form["rollno"],
-            branch=request.form["branch"],
-            year=request.form["year"],
-            section=request.form["section"],
-            phone=request.form["phone"],
-            email=request.form["email"],
+            name=request.form["name"].strip(),
+            roll_no=roll_no,
+            branch=request.form["branch"].strip().upper(),
+            year=str(request.form["year"]).strip().upper(),
+            section=request.form["section"].strip().upper(),
+            phone=request.form["phone"].strip(),
+            email=email,
             password=generate_password_hash(request.form["password"])
         )
         db.session.add(student)
@@ -149,15 +181,22 @@ def student_login():
         return redirect(url_for("student_dashboard"))
 
     if request.method == "POST":
-        student = Student.query.filter_by(email=request.form["email"]).first()
-        if student and check_password_hash(student.password, request.form["password"]):
+        email = request.form.get("email", "").strip().lower()
+        password = request.form.get("password", "")
+        
+        if not email or not password:
+            flash("Email and password are required", "danger")
+            return redirect(url_for("student_login"))
+            
+        student = Student.query.filter_by(email=email).first()
+        if student and check_password_hash(student.password, password):
             session.clear()
             session["student_id"] = student.id
             session["student_name"] = student.name
             return redirect(url_for("student_dashboard"))
 
         flash("Invalid credentials", "danger")
-        return redirect(url_for("student_login"))  # ADD THIS LINE
+        return redirect(url_for("student_login"))
 
     return render_template("student_login.html")
 
@@ -169,10 +208,11 @@ def student_dashboard():
 
     student = Student.query.get(session["student_id"])
 
-    assignments = Assignment.query.filter_by(
-        year=student.year,
-        branch=student.branch,
-        section=student.section
+    # Case-insensitive query for assignments
+    assignments = Assignment.query.filter(
+        db.func.lower(Assignment.year) == db.func.lower(student.year),
+        db.func.lower(Assignment.branch) == db.func.lower(student.branch),
+        db.func.lower(Assignment.section) == db.func.lower(student.section)
     ).all()
 
     submissions = Submission.query.filter_by(student_id=student.id).all()
@@ -296,13 +336,15 @@ def teacher_register():
         return redirect(url_for("teacher_dashboard"))
 
     if request.method == "POST":
-        if Teacher.query.filter_by(email=request.form["email"]).first():
+        email = request.form["email"].strip().lower()
+        
+        if Teacher.query.filter_by(email=email).first():
             flash("Teacher already exists","danger")
             return redirect(url_for("teacher_register"))
 
         teacher = Teacher(
-            name=request.form["name"],
-            email=request.form["email"],
+            name=request.form["name"].strip(),
+            email=email,
             password=generate_password_hash(request.form["password"])
         )
         db.session.add(teacher)
@@ -318,13 +360,22 @@ def teacher_login():
         return redirect(url_for("teacher_dashboard"))
 
     if request.method == "POST":
-        teacher = Teacher.query.filter_by(email=request.form["email"]).first()
-        if teacher and check_password_hash(teacher.password, request.form["password"]):
+        email = request.form.get("email", "").strip().lower()
+        password = request.form.get("password", "")
+        
+        if not email or not password:
+            flash("Email and password are required", "danger")
+            return redirect(url_for("teacher_login"))
+            
+        teacher = Teacher.query.filter_by(email=email).first()
+        if teacher and check_password_hash(teacher.password, password):
             session.clear()
             session["teacher_id"] = teacher.id
             session["teacher_name"] = teacher.name
             return redirect(url_for("teacher_dashboard"))
-        flash("Invalid credentials","danger")
+        
+        flash("Invalid credentials", "danger")
+        return redirect(url_for("teacher_login"))
 
     return render_template("teacher_login.html")
 
@@ -363,10 +414,10 @@ def teacher_upload():
     upload = cloudinary.uploader.upload(file, resource_type="raw", use_filename=True, unique_filename=True)
 
     assignment = Assignment(
-        title=request.form["title"],
-        year=request.form["year"],
-        branch=request.form["branch"],
-        section=request.form["section"],
+        title=request.form["title"].strip(),
+        year=str(request.form["year"]).strip().upper(),
+        branch=request.form["branch"].strip().upper(),
+        section=request.form["section"].strip().upper(),
         due_date=datetime.strptime(request.form["due_date"], "%Y-%m-%d").date(),
         file_url=upload["secure_url"]
     )
@@ -395,6 +446,23 @@ def teacher_logout():
     session.clear()
     flash("Logged out successfully", "info")
     return redirect(url_for("teacher_login"))
+
+# ---------------- DEBUG ROUTES ----------------
+@app.route("/debug/assignments")
+def debug_assignments():
+    """Temporary route to check all assignments in database"""
+    all_assignments = Assignment.query.all()
+    result = []
+    for a in all_assignments:
+        result.append({
+            "id": a.id,
+            "title": a.title,
+            "year": a.year,
+            "branch": a.branch,
+            "section": a.section,
+            "due_date": str(a.due_date)
+        })
+    return jsonify(result)
 
 # ---------------- RUN APP ----------------
 if __name__ == "__main__":
