@@ -108,7 +108,6 @@ def plagiarism_check(assignment_id, file_hash):
 
     return 95.0 if existing else 5.0
 
-
 # ---------------- HOME ----------------
 @app.route("/")
 def home():
@@ -182,10 +181,9 @@ def student_login():
     return render_template("student_login.html")
 
 
-
+# ================= STUDENT DASHBOARD =================
 @app.route("/student/dashboard")
 def student_dashboard():
-
     if "student_id" not in session:
         return redirect(url_for("student_login"))
 
@@ -197,19 +195,14 @@ def student_dashboard():
         section=student.section
     ).all()
 
-    submissions = Submission.query.filter_by(
-        student_id=student.id
-    ).all()
-
+    submissions = Submission.query.filter_by(student_id=student.id).all()
     submitted_map = {s.assignment_id: s for s in submissions}
 
     today = date.today()
-
     available_assignments = []
     submitted_assignments = []
 
     for a in assignments:
-
         days_left = (a.due_date - today).days
 
         if days_left < 0:
@@ -247,6 +240,7 @@ def student_dashboard():
         submitted_assignments=submitted_assignments,
         current_date=today
     )
+
 
 @app.route("/student/submit/<int:assignment_id>", methods=["POST"])
 def submit_assignment(assignment_id):
@@ -306,8 +300,8 @@ def student_logout():
     flash("Logged out successfully", "info")
     return redirect(url_for("student_login"))
 
-# ================= TEACHER =================
 
+# ================= TEACHER =================
 @app.route("/teacher/register", methods=["GET","POST"])
 def teacher_register():
 
@@ -453,6 +447,7 @@ def teacher_submissions(assignment_id):
 @app.route("/teacher/logout")
 def teacher_logout():
     session.clear()
+    flash("Logged out successfully", "info")
     return redirect(url_for("teacher_login"))
 
 
