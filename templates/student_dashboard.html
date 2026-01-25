@@ -8,40 +8,13 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 <style>
 body { font-family: Arial, sans-serif; background: #f8f9fa; padding: 20px; }
-
 h1, h2 { color: #333; }
-
-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-bottom: 20px;
-}
-
-th, td {
-    padding: 10px;
-    text-align: center;
-    border: 1px solid #dee2e6;
-}
-
-a.btn {
-    display: inline-block;
-    padding: 6px 12px;
-    border-radius: 4px;
-    color: white;
-    text-decoration: none;
-    font-size: 14px;
-}
-
+table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+th, td { padding: 10px; text-align: center; border: 1px solid #dee2e6; }
+a.btn { display: inline-block; padding: 6px 12px; border-radius: 4px; color: white; text-decoration: none; font-size: 14px; }
 .view-btn { background: #28a745; }
 .delete-btn { background: #dc3545; border: none; cursor: pointer; }
-
-.flash {
-    padding: 12px;
-    margin: 8px 0;
-    border-radius: 5px;
-    color: white;
-}
-
+.flash { padding: 12px; margin: 8px 0; border-radius: 5px; color: white; }
 .flash.success { background: #28a745; }
 .flash.danger { background: #dc3545; }
 .flash.warning { background: #ffc107; color: black; }
@@ -53,14 +26,12 @@ a.btn {
 
 <h1>Welcome, {{ student.name }}</h1>
 <a href="{{ url_for('student_logout') }}">Logout</a>
-
 <hr>
 
 <h2>Available Assignments</h2>
 
 {% if available_assignments %}
 <table>
-
 <tr>
     <th>Title</th>
     <th>Due In (Days)</th>
@@ -69,40 +40,31 @@ a.btn {
 
 {% for item in available_assignments %}
 <tr style="background-color: {{ item.color }}">
-
 <td>{{ item.assignment.title }}</td>
 <td>{{ item.days_left }}</td>
-
 <td>
 {% if item.can_upload %}
 <form action="{{ url_for('submit_assignment', assignment_id=item.assignment.id) }}" 
-      method="post" 
-      enctype="multipart/form-data">
-
+      method="post" enctype="multipart/form-data">
     <input type="file" name="file" required>
     <button type="submit" class="btn view-btn">Upload</button>
-
 </form>
 {% else %}
 <span>Deadline Passed</span>
 {% endif %}
 </td>
-
 </tr>
 {% endfor %}
-
 </table>
 {% else %}
 <p>No assignments available.</p>
 {% endif %}
 
 <hr>
-
 <h2>Submitted Assignments</h2>
 
 {% if submitted_assignments %}
 <table>
-
 <tr>
     <th>Title</th>
     <th>Submitted On</th>
@@ -114,7 +76,6 @@ a.btn {
 
 {% for item in submitted_assignments %}
 <tr style="background-color: {{ item.color }}">
-
 <td>{{ item.assignment.title }}</td>
 <td>{{ item.submitted_on }}</td>
 <td>{{ item.plagiarism_score }}%</td>
@@ -123,14 +84,14 @@ a.btn {
 <td>
 <!-- ✅ Mobile-friendly direct link -->
 <a class="btn view-btn"
-   href="{{ item.file_url }}"
-   target="_blank"
-   rel="noopener noreferrer">
+   href="{{ url_for('direct_file') }}?file_url={{ item.file_url | urlencode }}"
+   target="_blank" rel="noopener noreferrer">
    Open / Preview
 </a>
-<!-- Optional: download button for desktop only -->
+
+<!-- Optional download -->
 <a class="btn btn-secondary d-none d-md-inline"
-   href="{{ item.file_url }}"
+   href="{{ url_for('direct_file') }}?file_url={{ item.file_url | urlencode }}"
    download>
    Download
 </a>
@@ -138,17 +99,12 @@ a.btn {
 
 <td>
 <form action="{{ url_for('delete_submission', submission_id=item.submission_id) }}" 
-      method="post"
-      onsubmit="return confirm('Delete this submission?');">
-
+      method="post" onsubmit="return confirm('Delete this submission?');">
 <button class="delete-btn btn">Delete</button>
-
 </form>
 </td>
-
 </tr>
 {% endfor %}
-
 </table>
 {% else %}
 <p>No submissions yet.</p>
@@ -159,18 +115,12 @@ a.btn {
 {% if messages %}
 <div style="position: fixed; top: 20px; right: 20px; max-width: 300px; z-index: 1000;">
 {% for category, message in messages %}
-<div class="flash {{ category }}">
-    {{ message }}
-</div>
+<div class="flash {{ category }}">{{ message }}</div>
 {% endfor %}
 </div>
-
 <script>
-setTimeout(() => {
-  document.querySelectorAll(".flash").forEach(f => f.remove());
-}, 4000);
+setTimeout(() => { document.querySelectorAll(".flash").forEach(f => f.remove()); }, 4000);
 </script>
-
 {% endif %}
 {% endwith %}
 

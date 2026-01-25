@@ -6,6 +6,9 @@ import cloudinary, cloudinary.uploader
 import os
 from datetime import datetime, date
 import hashlib
+from flask import send_file, abort
+import requests
+from io import BytesIO
 
 # ---------------- APP ----------------
 app = Flask(__name__)
@@ -90,6 +93,24 @@ def plagiarism_check(assignment_id, file_hash):
 @app.route("/")
 def home():
     return redirect(url_for("student_login"))
+
+
+
+@app.route('/direct_file/<path:file_url>')
+def direct_file(file_url):
+    try:
+        # Cloudinary or any URL
+        response = requests.get(file_url)
+        response.raise_for_status()
+        # Get filename from URL
+        filename = file_url.split("/")[-1]
+        return send_file(
+            BytesIO(response.content),
+            download_name=filename,
+            as_attachment=False  # Important: False so it opens in mobile browser
+        )
+    except Exception as e:
+        abort(404)
 
 # ---------------- STUDENT ROUTES ----------------
 @app.route("/student/register", methods=["GET","POST"])
