@@ -223,6 +223,33 @@ def submit_assignment(assignment_id):
     return redirect(url_for("student_dashboard"))
 
 
+@app.route("/student/submission/delete/<int:submission_id>", methods=["POST"])
+def delete_submission(submission_id):
+    # Check if student is logged in
+    if "student_id" not in session:
+        flash("Please login first!", "warning")
+        return redirect(url_for("student_login"))
+
+    student_id = session["student_id"]
+
+    # Get the submission
+    submission = Submission.query.filter_by(id=submission_id, student_id=student_id).first()
+
+    if not submission:
+        flash("Submission not found or not authorized!", "danger")
+        return redirect(url_for("student_dashboard"))
+
+    try:
+        # Delete the submission from DB
+        db.session.delete(submission)
+        db.session.commit()
+        flash("Submission deleted successfully!", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash("Error deleting submission: " + str(e), "danger")
+
+    return redirect(url_for("student_dashboard"))
+
 
 @app.route("/student/logout")
 def student_logout():
