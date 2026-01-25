@@ -156,7 +156,8 @@ def student_login():
             session["student_name"] = student.name
             return redirect(url_for("student_dashboard"))
 
-        flash("Invalid credentials","danger")
+        flash("Invalid credentials", "danger")
+        return redirect(url_for("student_login"))  # ADD THIS LINE
 
     return render_template("student_login.html")
 
