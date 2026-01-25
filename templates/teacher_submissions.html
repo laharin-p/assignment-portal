@@ -5,18 +5,23 @@
 <meta charset="UTF-8">
 <title>Assignment Submissions</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
+
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
 <style>
 body { background:#f8f9fa; }
-.plag-high { background:#f8d7da!important; }   /* >50% */
-.plag-medium { background:#fff3cd!important; } /* 20–50% */
-.plag-low { background:#d1e7dd!important; }    /* <20% */
+
+.plag-high { background:#f8d7da!important; }
+.plag-medium { background:#fff3cd!important; }
+.plag-low { background:#d1e7dd!important; }
+
 td,th { vertical-align:middle; }
-.file-btn { font-size:.85rem; min-width: 100px; }
-.file-buttons { display: flex; flex-direction: column; gap: 5px; }
-@media (min-width: 768px) {
-    .file-buttons { flex-direction: row; }
+
+.file-btn {
+    font-size: .85rem;
+    min-width: 110px;
 }
+
 </style>
 </head>
 
@@ -38,15 +43,17 @@ td,th { vertical-align:middle; }
 
 <thead class="table-dark">
 <tr>
-<th>Roll No</th>
-<th>Student Name</th>
-<th>File</th>
-<th>Submitted On</th>
-<th>Plagiarism</th>
+    <th>Roll No</th>
+    <th>Student Name</th>
+    <th>File</th>
+    <th>Submitted On</th>
+    <th>Plagiarism</th>
 </tr>
 </thead>
 
 <tbody>
+
+{% if submissions %}
 
 {% for sub in submissions %}
 
@@ -65,55 +72,44 @@ td,th { vertical-align:middle; }
 <td>{{ sub.student.name }}</td>
 
 <td>
-    <div class="file-buttons">
-        <!-- OPTION 1: Direct Cloudinary link (Most reliable) -->
-        <a href="{{ sub.file_url }}" 
-           target="_blank"
-           class="btn btn-success btn-sm file-btn"
-           onclick="return confirmOpen('{{ sub.file_url.split('.')[-1]|upper }}');">
-           <span style="font-size: 1.2em;">👁️</span> View
-        </a>
-        
-        <!-- OPTION 2: Download via /file route -->
-        <a href="{{ url_for('open_file') }}?url={{ sub.file_url|urlencode }}&disposition=download"
-           class="btn btn-primary btn-sm file-btn">
-           <span style="font-size: 1.2em;">📥</span> Download
-        </a>
-        
-        <!-- OPTION 3: View in browser via /file route -->
-        <a href="{{ url_for('open_file') }}?url={{ sub.file_url|urlencode }}"
-           target="_blank"
-           class="btn btn-info btn-sm file-btn">
-           <span style="font-size: 1.2em;">🌐</span> Browser
-        </a>
-    </div>
-    
-    <!-- Show file type info -->
-    <small class="text-muted d-block mt-1">
-        {% set file_ext = sub.file_url.split('.')[-1]|upper %}
-        {% if file_ext in ['PDF', 'JPG', 'JPEG', 'PNG'] %}
-            <span class="badge bg-success">{{ file_ext }}</span> (Mobile-friendly)
-        {% elif file_ext in ['DOC', 'DOCX', 'TXT'] %}
-            <span class="badge bg-warning text-dark">{{ file_ext }}</span> (May need app)
-        {% else %}
-            <span class="badge bg-secondary">{{ file_ext }}</span>
-        {% endif %}
-    </small>
+
+<!-- ✅ Mobile + Desktop safe -->
+<a href="{{ url_for('direct_file') }}?url={{ sub.file_url }}" 
+   target="_blank"
+   class="btn btn-success btn-sm file-btn">
+
+   📂 Open / Download
+
+</a>
+
+<br>
+
+<small class="text-muted">
+{% set file_ext = sub.file_url.split('.')[-1]|upper %}
+Type: {{ file_ext }}
+</small>
+
 </td>
 
 <td>{{ sub.submitted_on.strftime('%d-%m-%Y') }}</td>
 
 <td>
-    {% if sub.plagiarism_score >= 50 %}
-    <span class="badge bg-danger">{{ sub.plagiarism_score }}%</span>
-    {% elif sub.plagiarism_score >= 20 %}
-    <span class="badge bg-warning text-dark">{{ sub.plagiarism_score }}%</span>
-    {% else %}
-    <span class="badge bg-success">{{ sub.plagiarism_score }}%</span>
-    {% endif %}
+
+{% if sub.plagiarism_score >= 50 %}
+<span class="badge bg-danger">{{ sub.plagiarism_score }}%</span>
+
+{% elif sub.plagiarism_score >= 20 %}
+<span class="badge bg-warning text-dark">{{ sub.plagiarism_score }}%</span>
+
+{% else %}
+<span class="badge bg-success">{{ sub.plagiarism_score }}%</span>
+{% endif %}
+
 </td>
 
 </tr>
+
+{% endfor %}
 
 {% else %}
 <tr>
@@ -121,7 +117,7 @@ td,th { vertical-align:middle; }
 No submissions yet
 </td>
 </tr>
-{% endfor %}
+{% endif %}
 
 </tbody>
 
@@ -129,126 +125,34 @@ No submissions yet
 
 </div>
 
-<!-- Flash Messages -->
+<!-- FLASH MESSAGES -->
+
 {% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}
-        <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 11;">
-            {% for category, message in messages %}
-                <div class="toast show" role="alert" aria-live="assertive" aria-atomic="true">
-                    <div class="toast-header bg-{{ category }} text-white">
-                        <strong class="me-auto">Notification</strong>
-                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
-                    </div>
-                    <div class="toast-body">
-                        {{ message }}
-                    </div>
-                </div>
-            {% endfor %}
-        </div>
-        
-        <!-- Auto-hide toasts after 5 seconds -->
-        <script>
-            document.addEventListener('DOMContentLoaded', function() {
-                setTimeout(function() {
-                    var toasts = document.querySelectorAll('.toast');
-                    toasts.forEach(function(toast) {
-                        var bsToast = new bootstrap.Toast(toast);
-                        bsToast.hide();
-                    });
-                }, 5000);
-            });
-        </script>
-    {% endif %}
+{% if messages %}
+
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index:11;">
+
+{% for category, message in messages %}
+
+<div class="alert alert-{{ category }} shadow-sm mb-2">
+{{ message }}
+</div>
+
+{% endfor %}
+
+</div>
+
+<script>
+setTimeout(() => {
+  document.querySelectorAll(".alert").forEach(a => a.remove());
+}, 4000);
+</script>
+
+{% endif %}
 {% endwith %}
 
 </div>
 
-<!-- JavaScript for better mobile handling -->
-<script>
-// Function to warn about file types
-function confirmOpen(fileType) {
-    const mobileFriendly = ['PDF', 'JPG', 'JPEG', 'PNG', 'GIF', 'TXT'];
-    const officeFiles = ['DOC', 'DOCX', 'PPT', 'PPTX', 'XLS', 'XLSX'];
-    
-    if (officeFiles.includes(fileType)) {
-        return confirm(`This is a ${fileType} file. On mobile, it may open in Google Drive or require an office app. Continue?`);
-    }
-    return true;
-}
-
-// Function to open Google Docs viewer for mobile
-function openGoogleViewer(url) {
-    const googleViewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true`;
-    window.open(googleViewerUrl, '_blank');
-}
-
-// Mobile detection
-function isMobile() {
-    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-}
-
-// Initialize tooltips for file type badges
-document.addEventListener('DOMContentLoaded', function() {
-    // Initialize Bootstrap tooltips
-    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-        return new bootstrap.Tooltip(tooltipTriggerEl);
-    });
-    
-    // Add mobile-specific behavior
-    if (isMobile()) {
-        console.log('Mobile device detected');
-        
-        // Add mobile-specific tips to file buttons
-        const fileButtons = document.querySelectorAll('.file-btn');
-        fileButtons.forEach(button => {
-            if (button.textContent.includes('👁️')) {
-                button.setAttribute('data-bs-toggle', 'tooltip');
-                button.setAttribute('data-bs-placement', 'top');
-                button.setAttribute('title', 'Direct link - works best on mobile');
-            }
-        });
-    }
-    
-    // Auto-click the best option for mobile
-    if (isMobile()) {
-        // On mobile, we can't auto-click due to browser restrictions
-        // But we can show a helpful message
-        const fileTypeBadges = document.querySelectorAll('.badge');
-        fileTypeBadges.forEach(badge => {
-            if (badge.textContent.includes('PDF')) {
-                badge.setAttribute('data-bs-toggle', 'tooltip');
-                badge.setAttribute('data-bs-placement', 'top');
-                badge.setAttribute('title', 'PDF files work best on mobile');
-            } else if (badge.textContent.includes('DOC')) {
-                badge.setAttribute('data-bs-toggle', 'tooltip');
-                badge.setAttribute('data-bs-placement', 'top');
-                badge.setAttribute('title', 'Office files may need Google Docs or Office app');
-            }
-        });
-    }
-});
-
-// Simple mobile file handler
-function handleMobileFile(url) {
-    const fileExt = url.split('.').pop().toLowerCase();
-    const mobileFriendly = ['pdf', 'jpg', 'jpeg', 'png', 'gif'];
-    
-    if (mobileFriendly.includes(fileExt)) {
-        // Direct open for mobile-friendly files
-        window.open(url, '_blank');
-    } else {
-        // For office files, offer Google Docs viewer
-        if (confirm('This file type may not open directly on mobile. Try Google Docs viewer?')) {
-            openGoogleViewer(url);
-        } else {
-            window.open(url, '_blank');
-        }
-    }
-}
-</script>
-
-<!-- Bootstrap JS for tooltips -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
 </body>
