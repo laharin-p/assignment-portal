@@ -62,7 +62,6 @@ a.btn {
 
 {% if available_assignments %}
 <table>
-
 <tr>
     <th>Title</th>
     <th>Due In (Days)</th>
@@ -70,7 +69,7 @@ a.btn {
 </tr>
 
 {% for item in available_assignments %}
-<tr style="background-color: {{ item.color }}">
+<tr style="background-color: {% if item.color == 'green' %}#d4edda{% elif item.color == 'orange' %}#fff3cd{% else %}#f8d7da{% endif %}">
 
 <td>{{ item.assignment.title }}</td>
 <td>{{ item.days_left }}</td>
@@ -104,7 +103,6 @@ a.btn {
 
 {% if submitted_assignments %}
 <table>
-
 <tr>
     <th>Title</th>
     <th>Submitted On</th>
@@ -115,7 +113,7 @@ a.btn {
 </tr>
 
 {% for item in submitted_assignments %}
-<tr style="background-color: {{ item.color }}">
+<tr style="background-color: {% if item.color == 'green' %}#d4edda{% elif item.color == 'orange' %}#fff3cd{% else %}#f8d7da{% endif %}">
 
 <td>{{ item.assignment.title }}</td>
 <td>{{ item.submitted_on }}</td>
@@ -128,6 +126,11 @@ a.btn {
    href="{{ item.file_url }}"
    target="_blank">
    Open
+</a>
+<a class="btn btn-secondary"
+   href="{{ item.file_url }}"
+   download>
+   Download
 </a>
 </td>
 
@@ -150,7 +153,6 @@ a.btn {
 {% endif %}
 
 <!-- FLASH MESSAGES -->
-
 {% with messages = get_flashed_messages(with_categories=true) %}
 {% if messages %}
 <div style="position: fixed; top: 20px; right: 20px; max-width: 300px; z-index: 1000;">
