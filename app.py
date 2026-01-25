@@ -4,7 +4,7 @@ from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 import cloudinary, cloudinary.uploader
 import os
-from datetime import datetime, date, timedelta
+from datetime import datetime, date
 import hashlib
 import requests
 
@@ -16,8 +16,10 @@ app.secret_key = os.environ.get("SECRET_KEY", "dev_secret_key")
 DATABASE_URL = os.environ.get("DATABASE_URL")
 if not DATABASE_URL:
     raise RuntimeError("DATABASE_URL is not set")
+
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
 app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db = SQLAlchemy(app)
@@ -31,11 +33,13 @@ cloudinary.config(
 )
 
 # ---------------- MODELS ----------------
+
 class Teacher(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100))
     email = db.Column(db.String(100), unique=True)
     password = db.Column(db.String(200))
+
 
 class Student(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -48,6 +52,7 @@ class Student(db.Model):
     email = db.Column(db.String(120), unique=True)
     password = db.Column(db.String(200))
 
+
 class Assignment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200))
@@ -57,6 +62,7 @@ class Assignment(db.Model):
     due_date = db.Column(db.Date)
     file_url = db.Column(db.String(500))
 
+
 class Submission(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     student_id = db.Column(db.Integer, db.ForeignKey("student.id"))
@@ -65,20 +71,22 @@ class Submission(db.Model):
     file_hash = db.Column(db.String(64))
     submitted_on = db.Column(db.Date)
     plagiarism_score = db.Column(db.Float)
-    marks = db.Column(db.Float)
 
     assignment = db.relationship("Assignment")
     student = db.relationship("Student")
 
+
 with app.app_context():
     db.create_all()
 
-# ---------------- FILE PROXY ----------------
+# ---------------- FILE OPEN ----------------
+
 @app.route("/file")
 def open_file():
     url = request.args.get("url")
     if not url:
         return "File not found", 404
+
     r = requests.get(url, stream=True)
     return Response(
         r.iter_content(chunk_size=1024),
@@ -87,25 +95,34 @@ def open_file():
     )
 
 # ---------------- PLAGIARISM ----------------
+
 def calculate_hash(file):
     file.stream.seek(0)
     content = file.stream.read()
     file.stream.seek(0)
     return hashlib.sha256(content).hexdigest()
 
+
 def plagiarism_check(assignment_id, file_hash):
-    exists = Submission.query.filter_by(assignment_id=assignment_id, file_hash=file_hash).first()
+    exists = Submission.query.filter_by(
+        assignment_id=assignment_id,
+        file_hash=file_hash
+    ).first()
     return 95.0 if exists else 5.0
 
+
 # ---------------- HOME ----------------
+
 @app.route("/")
 def home():
     return redirect(url_for("student_login"))
 
 # ================= STUDENT =================
+
 @app.route("/student/register", methods=["GET", "POST"])
 def student_register():
     if request.method == "POST":
+
         if Student.query.filter(
             (Student.email == request.form["email"]) |
             (Student.roll_no == request.form["rollno"])
@@ -122,28 +139,40 @@ def student_register():
             email=request.form["email"],
             password=generate_password_hash(request.form["password"])
         )
+
         db.session.add(student)
         db.session.commit()
+
         session["student_id"] = student.id
         session["student_name"] = student.name
+
         return redirect(url_for("student_dashboard"))
 
     return render_template("student_register.html")
 
+
 @app.route("/student/login", methods=["GET", "POST"])
 def student_login():
     if request.method == "POST":
-        student = Student.query.filter_by(email=request.form["email"]).first()
+
+        student = Student.query.filter_by(
+            email=request.form["email"]
+        ).first()
+
         if student and check_password_hash(student.password, request.form["password"]):
             session.clear()
             session["student_id"] = student.id
             session["student_name"] = student.name
             return redirect(url_for("student_dashboard"))
+
         flash("Invalid credentials", "danger")
+
     return render_template("student_login.html")
+
 
 @app.route("/student/dashboard")
 def student_dashboard():
+
     if "student_id" not in session:
         return redirect(url_for("student_login"))
 
@@ -151,13 +180,25 @@ def student_dashboard():
     assignments = Assignment.query.all()
     submissions = Submission.query.filter_by(student_id=student.id).all()
 
-    # Compute deadline status
     assignment_status = []
+
     for a in assignments:
+
         submitted = any(s.assignment_id == a.id for s in submissions)
         days_left = (a.due_date - date.today()).days
-        color = "red" if days_left < 0 else "orange" if days_left <= 2 else "green"
-        can_upload = (days_left >= 0) and not submitted
+
+        if days_left < 0:
+            color = "red"
+            can_upload = False
+
+        elif days_left <= 2:
+            color = "orange"
+            can_upload = not submitted
+
+        else:
+            color = "green"
+            can_upload = not submitted
+
         assignment_status.append({
             "assignment": a,
             "submitted": submitted,
@@ -173,12 +214,15 @@ def student_dashboard():
         current_date=date.today()
     )
 
+
 @app.route("/student/submit/<int:assignment_id>", methods=["POST"])
 def submit_assignment(assignment_id):
+
     if "student_id" not in session:
         return redirect(url_for("student_login"))
 
     file = request.files.get("file")
+
     if not file:
         flash("No file selected", "danger")
         return redirect(url_for("student_dashboard"))
@@ -201,10 +245,14 @@ def submit_assignment(assignment_id):
         submitted_on=date.today(),
         plagiarism_score=score
     )
+
     db.session.add(submission)
     db.session.commit()
+
     flash("Assignment submitted successfully", "success")
+
     return redirect(url_for("student_dashboard"))
+
 
 @app.route("/student/logout")
 def student_logout():
@@ -212,10 +260,12 @@ def student_logout():
     return redirect(url_for("student_login"))
 
 # ================= TEACHER =================
+
 @app.route("/teacher/register", methods=["GET", "POST"])
 def teacher_register():
+
     if request.method == "POST":
-        # Check if teacher already exists
+
         if Teacher.query.filter_by(email=request.form["email"]).first():
             flash("Teacher already exists", "danger")
             return redirect(url_for("teacher_register"))
@@ -229,52 +279,74 @@ def teacher_register():
         db.session.add(teacher)
         db.session.commit()
 
-        flash("Teacher registered successfully. Please login.", "success")
+        flash("Teacher registered successfully", "success")
         return redirect(url_for("teacher_login"))
 
     return render_template("teacher_register.html")
-    
+
+
 @app.route("/teacher/login", methods=["GET", "POST"])
 def teacher_login():
+
     if request.method == "POST":
-        teacher = Teacher.query.filter_by(email=request.form["email"]).first()
+
+        teacher = Teacher.query.filter_by(
+            email=request.form["email"]
+        ).first()
+
         if teacher and check_password_hash(teacher.password, request.form["password"]):
+
             session.clear()
             session["teacher_id"] = teacher.id
             session["teacher_name"] = teacher.name
+
             return redirect(url_for("teacher_dashboard"))
+
         flash("Invalid credentials", "danger")
+
     return render_template("teacher_login.html")
+
 
 @app.route("/teacher/dashboard")
 def teacher_dashboard():
+
     if "teacher_id" not in session:
         return redirect(url_for("teacher_login"))
 
-    teacher = Teacher.query.get(session["teacher_id"])  # <-- fetch teacher
+    teacher = Teacher.query.get(session["teacher_id"])
 
     assignments = Assignment.query.all()
     students = Student.query.all()
+
     pending = {}
 
     for a in assignments:
-        submitted_ids = [s.student_id for s in Submission.query.filter_by(assignment_id=a.id)]
+
+        submitted_ids = [
+            s.student_id for s in Submission.query.filter_by(
+                assignment_id=a.id
+            ).all()
+        ]
+
         pending[a.id] = [s for s in students if s.id not in submitted_ids]
 
     return render_template(
         "teacher_dashboard.html",
-        teacher=teacher,      # <-- pass teacher here
+        teacher=teacher,
         assignments=assignments,
         pending=pending,
         current_date=date.today()
     )
 
+
 @app.route("/teacher/upload", methods=["POST"])
 def teacher_upload():
+
     if "teacher_id" not in session:
         return redirect(url_for("teacher_login"))
 
     file = request.files.get("file")
+
     if not file:
         flash("No file uploaded", "danger")
         return redirect(url_for("teacher_dashboard"))
@@ -291,21 +363,32 @@ def teacher_upload():
         year=request.form["year"],
         branch=request.form["branch"],
         section=request.form["section"],
-        due_date=datetime.strptime(request.form["due_date"], "%Y-%m-%d").date(),
+        due_date=datetime.strptime(
+            request.form["due_date"], "%Y-%m-%d"
+        ).date(),
         file_url=upload["secure_url"]
     )
+
     db.session.add(assignment)
     db.session.commit()
+
     flash("Assignment uploaded", "success")
+
     return redirect(url_for("teacher_dashboard"))
+
 
 @app.route("/teacher/submissions/<int:assignment_id>")
 def teacher_submissions(assignment_id):
+
     if "teacher_id" not in session:
         return redirect(url_for("teacher_login"))
 
     assignment = Assignment.query.get_or_404(assignment_id)
-    submissions = Submission.query.filter_by(assignment_id=assignment_id).all()
+
+    submissions = Submission.query.filter_by(
+        assignment_id=assignment_id
+    ).all()
+
     return render_template(
         "teacher_submissions.html",
         assignment=assignment,
@@ -313,10 +396,12 @@ def teacher_submissions(assignment_id):
         current_date=date.today()
     )
 
+
 @app.route("/teacher/logout")
 def teacher_logout():
     session.clear()
     return redirect(url_for("teacher_login"))
+
 
 if __name__ == "__main__":
     app.run(debug=True)
