@@ -260,7 +260,6 @@ def submit_assignment(assignment_id):
     flash("Submitted successfully","success")
     return redirect(url_for("student_dashboard"))
 
-# ---------------- DELETE SUBMISSION ----------------
 @app.route("/student/delete_submission/<int:submission_id>", methods=["POST"])
 def delete_submission(submission_id):
     if "student_id" not in session:
@@ -285,8 +284,7 @@ def delete_submission(submission_id):
 
 @app.route("/student/logout")
 def student_logout():
-    session.pop("student_id", None)
-    session.pop("student_name", None)
+    session.clear()
     flash("Logged out successfully", "info")
     return redirect(url_for("student_login"))
 
@@ -397,5 +395,6 @@ def teacher_logout():
     flash("Logged out successfully", "info")
     return redirect(url_for("teacher_login"))
 
+# ---------------- RUN APP ----------------
 if __name__ == "__main__":
     app.run(debug=True)
