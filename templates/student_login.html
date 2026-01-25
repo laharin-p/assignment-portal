@@ -83,12 +83,27 @@
                 <h3 class="text-center mb-1">Student Login</h3>
                 <p class="text-center text-muted mb-4">Assignment Submission Portal</p>
 
-                <form method="POST" onsubmit="showLoading()">
-                    <input type="email" name="email" class="form-control mb-3" placeholder="Student Email" required>
-                    <input type="password" name="password" class="form-control mb-3" placeholder="Password" required>
+                <!-- ✅ CORRECTED FORM -->
+                <form method="POST" action="{{ url_for('student_login') }}" onsubmit="showLoading()">
 
-                    <button class="btn btn-primary w-100 py-2">Login</button>
+                    <input type="email" 
+                           name="email" 
+                           class="form-control mb-3" 
+                           placeholder="Student Email" 
+                           required>
+
+                    <input type="password" 
+                           name="password" 
+                           class="form-control mb-3" 
+                           placeholder="Password" 
+                           required>
+
+                    <button type="submit" class="btn btn-primary w-100 py-2">
+                        Login
+                    </button>
+
                 </form>
+
             </div>
         </div>
     </div>
