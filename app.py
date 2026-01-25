@@ -151,22 +151,31 @@ def student_register():
     return render_template("student_register.html")
 
 
-@app.route("/student/login", methods=["GET","POST"])
+@app.route("/student/login", methods=["GET", "POST"])
 def student_login():
+
+    # If student already logged in
     if "student_id" in session:
         return redirect(url_for("student_dashboard"))
 
     if request.method == "POST":
-        student = Student.query.filter_by(email=request.form["email"]).first()
-        if student and check_password_hash(student.password, request.form["password"]):
+
+        email = request.form["email"]
+        password = request.form["password"]
+
+        student = Student.query.filter_by(email=email).first()
+
+        if student and check_password_hash(student.password, password):
+
             session.clear()
             session["student_id"] = student.id
             session["student_name"] = student.name
+
             return redirect(url_for("student_dashboard"))
-        flash("Invalid credentials","danger")
+
+        flash("Invalid credentials", "danger")
 
     return render_template("student_login.html")
-
 
 @app.route("/student/dashboard")
 def student_dashboard():
