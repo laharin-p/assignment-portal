@@ -2,139 +2,238 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Student Registration | Assignment Portal</title>
+<meta charset="UTF-8">
+<title>Student Registration | Assignment Portal</title>
 
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="/static/css/login.css">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 
-    <style>
-        body {
-            background: linear-gradient(135deg, #f0f4ff, #e6ebff);
-            min-height: 100vh;
-        }
-        .card {
-            border: none;
-            border-radius: 12px;
-        }
-        .card-header {
-            background-color: #2f3cff;
-            color: white;
-            border-radius: 12px 12px 0 0;
-        }
-        .form-control:focus, .form-select:focus {
-            box-shadow: none;
-            border-color: #2f3cff;
-        }
-        .btn-primary {
-            background-color: #2f3cff;
-            border: none;
-        }
-        .btn-primary:hover {
-            background-color: #1f2ad9;
-        }
-    </style>
+<style>
+body{
+    background: linear-gradient(135deg, #f0f4ff, #e6ebff);
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+}
+
+.card{
+    border:none;
+    border-radius:14px;
+}
+
+.card-header{
+    background:#2f3cff;
+    color:white;
+    border-radius:14px 14px 0 0;
+}
+
+.form-control:focus,
+.form-select:focus{
+    box-shadow:none;
+    border-color:#2f3cff;
+}
+
+.btn-primary{
+    background:#2f3cff;
+    border:none;
+}
+
+.btn-primary:hover{
+    background:#1f2ad9;
+}
+
+/* ===== LOADING SCREEN ===== */
+.loading-overlay{
+    position:fixed;
+    inset:0;
+    background: linear-gradient(135deg, #2f3cff, #6610f2);
+    color:white;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    flex-direction:column;
+    text-align:center;
+    z-index:9999;
+}
+
+.spinner{
+    width:70px;
+    height:70px;
+    border:6px solid rgba(255,255,255,.3);
+    border-top:6px solid #fff;
+    border-radius:50%;
+    animation:spin 1s linear infinite;
+    margin-bottom:20px;
+}
+
+@keyframes spin{
+    to{transform:rotate(360deg)}
+}
+
+.step{
+    opacity:.5;
+    font-size:.9rem;
+}
+
+.step.active{
+    opacity:1;
+    font-weight:600;
+}
+</style>
 </head>
 
 <body>
 
-<div class="container d-flex justify-content-center align-items-center">
-    <div class="col-md-5 col-sm-10 mt-5">
+<!-- ===== LOADING OVERLAY ===== -->
+<div class="loading-overlay" id="loading">
 
-        <div class="card shadow-lg">
-            <div class="card-header text-center py-3">
-                <h4 class="mb-0">Student Registration</h4>
-                <small>Assignment Management Portal</small>
-            </div>
+<div class="spinner"></div>
 
-            <div class="card-body p-4">
-                <form method="POST" action="/student/register">
+<h4 class="mb-2">Creating your account</h4>
+<p class="mb-4">Please wait…</p>
 
-                    {% if error %}
-                    <div class="alert alert-danger text-center">
-                        {{ error }}
-                    </div>
-                    {% endif %}
+<div class="step active" id="step1">📝 Saving details</div>
+<div class="step" id="step2">🔐 Securing account</div>
+<div class="step" id="step3">📚 Redirecting dashboard</div>
 
-                    <div class="mb-3">
-                        <label class="form-label">Full Name</label>
-                        <input type="text" name="name" class="form-control" required>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label">Roll Number</label>
-                        <input type="text" name="rollno" class="form-control" required>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label">Branch</label>
-                        <select name="branch" class="form-select" required>
-                            <option value="">Select Branch</option>
-                            <option>CSE</option>
-                            <option>ECE</option>
-                            <option>EEE</option>
-                            <option>AIDS</option>
-                            <option>CSM</option>
-                            <option>CSE-DS</option>
-                            <option>MECH</option>
-                            <option>CIVIL</option>
-                            <option>IT</option>
-                        </select>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label">Year</label>
-                        <select name="year" class="form-select" required>
-                            <option value="">Select Year</option>
-                            <option value="1">1st Year</option>
-                            <option value="2">2nd Year</option>
-                            <option value="3">3rd Year</option>
-                            <option value="4">4th Year</option>
-                        </select>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label">Section</label>
-                        <select name="section" class="form-select" required>
-                            <option value="">Select Section</option>
-                            <option>A</option><option>B</option><option>C</option>
-                            <option>D</option><option>E</option><option>F</option>
-                            <option>G</option><option>H</option><option>I</option>
-                        </select>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label">Phone Number</label>
-                        <input type="text" name="phone" class="form-control" required>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label">Email Address</label>
-                        <input type="email" name="email" class="form-control" required>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label">Password</label>
-                        <input type="password" name="password" class="form-control" required>
-                    </div>
-
-                    <button type="submit" class="btn btn-primary w-100 py-2">
-                        Register
-                    </button>
-
-                </form>
-            </div>
-
-            <div class="card-footer text-center bg-white border-0">
-                <small>
-                    Already registered?
-                    <a href="/student/login" class="fw-semibold">Login here</a>
-                </small>
-            </div>
-        </div>
-
-    </div>
 </div>
+
+<!-- ===== REGISTRATION CARD ===== -->
+<div class="container">
+<div class="row justify-content-center">
+<div class="col-md-5 col-sm-10">
+
+<div class="card shadow-lg">
+
+<div class="card-header text-center py-3">
+<h4 class="mb-0">Student Registration</h4>
+<small>Assignment Management Portal</small>
+</div>
+
+<div class="card-body p-4">
+
+<!-- 🔴 FLASH / ERROR -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+      <div class="alert alert-{{ category }} text-center py-2">
+        {{ message }}
+      </div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+{% if error %}
+<div class="alert alert-danger text-center">
+    {{ error }}
+</div>
+{% endif %}
+
+<form method="POST"
+      action="{{ url_for('student_register') }}"
+      onsubmit="return showLoading()">
+
+<div class="mb-3">
+<label class="form-label">Full Name</label>
+<input type="text" name="name" class="form-control" required>
+</div>
+
+<div class="mb-3">
+<label class="form-label">Roll Number</label>
+<input type="text" name="rollno" class="form-control" required>
+</div>
+
+<div class="mb-3">
+<label class="form-label">Branch</label>
+<select name="branch" class="form-select" required>
+<option value="">Select Branch</option>
+<option>CSE</option>
+<option>ECE</option>
+<option>EEE</option>
+<option>AIDS</option>
+<option>CSM</option>
+<option>CSE-DS</option>
+<option>MECH</option>
+<option>CIVIL</option>
+<option>IT</option>
+</select>
+</div>
+
+<div class="mb-3">
+<label class="form-label">Year</label>
+<select name="year" class="form-select" required>
+<option value="">Select Year</option>
+<option value="1">1st Year</option>
+<option value="2">2nd Year</option>
+<option value="3">3rd Year</option>
+<option value="4">4th Year</option>
+</select>
+</div>
+
+<div class="mb-3">
+<label class="form-label">Section</label>
+<select name="section" class="form-select" required>
+<option value="">Select Section</option>
+<option>A</option><option>B</option><option>C</option>
+<option>D</option><option>E</option><option>F</option>
+<option>G</option><option>H</option><option>I</option>
+</select>
+</div>
+
+<div class="mb-3">
+<label class="form-label">Phone Number</label>
+<input type="text" name="phone" class="form-control" required>
+</div>
+
+<div class="mb-3">
+<label class="form-label">Email Address</label>
+<input type="email" name="email" class="form-control" required>
+</div>
+
+<div class="mb-3">
+<label class="form-label">Password</label>
+<input type="password" name="password" class="form-control" required>
+</div>
+
+<button type="submit"
+        class="btn btn-primary w-100 py-2"
+        id="registerBtn">
+Register
+</button>
+
+</form>
+
+</div>
+
+<div class="card-footer text-center bg-white border-0">
+<small>
+Already registered?
+<a href="{{ url_for('student_login') }}" class="fw-semibold">Login here</a>
+</small>
+</div>
+
+</div>
+</div>
+</div>
+</div>
+
+<script>
+function showLoading(){
+
+document.getElementById("loading").style.display="flex";
+document.getElementById("registerBtn").disabled=true;
+
+setTimeout(()=>{
+    document.getElementById("step2").classList.add("active");
+},1000);
+
+setTimeout(()=>{
+    document.getElementById("step3").classList.add("active");
+},2200);
+
+return true;
+}
+</script>
 
 </body>
 </html>
