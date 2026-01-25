@@ -76,44 +76,135 @@ class Submission(db.Model):
 with app.app_context():
     db.create_all()
 
-# ---------------- FILE VIEW ----------------
+# ---------------- IMPROVED FILE HANDLING ----------------
 @app.route("/file")
 def open_file():
+    """Improved file handler that works on all devices"""
     url = request.args.get("url")
     if not url:
-        return "File not found", 404
+        flash("File URL not provided", "danger")
+        return redirect(request.referrer or url_for('student_dashboard'))
     
     try:
-        r = requests.get(url, stream=True)
-        
-        # Get filename from URL
+        # Parse the URL to get filename
         parsed_url = urlparse(url)
         filename = parsed_url.path.split("/")[-1]
+        file_extension = filename.split('.')[-1].lower() if '.' in filename else ''
         
-        # Determine MIME type based on file extension
-        mime_type, encoding = mimetypes.guess_type(filename)
+        # Comprehensive MIME type mapping
+        mime_type_map = {
+            # Documents
+            'pdf': 'application/pdf',
+            'doc': 'application/msword',
+            'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'txt': 'text/plain',
+            'rtf': 'application/rtf',
+            'odt': 'application/vnd.oasis.opendocument.text',
+            
+            # Spreadsheets
+            'xls': 'application/vnd.ms-excel',
+            'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'ods': 'application/vnd.oasis.opendocument.spreadsheet',
+            
+            # Presentations
+            'ppt': 'application/vnd.ms-powerpoint',
+            'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+            'odp': 'application/vnd.oasis.opendocument.presentation',
+            
+            # Images
+            'jpg': 'image/jpeg',
+            'jpeg': 'image/jpeg',
+            'png': 'image/png',
+            'gif': 'image/gif',
+            'bmp': 'image/bmp',
+            'svg': 'image/svg+xml',
+            'webp': 'image/webp',
+            
+            # Archives
+            'zip': 'application/zip',
+            'rar': 'application/x-rar-compressed',
+            '7z': 'application/x-7z-compressed',
+            'tar': 'application/x-tar',
+            'gz': 'application/gzip',
+            
+            # Code/Text
+            'html': 'text/html',
+            'htm': 'text/html',
+            'css': 'text/css',
+            'js': 'application/javascript',
+            'json': 'application/json',
+            'xml': 'application/xml',
+            'csv': 'text/csv',
+            
+            # Audio/Video (if you allow these)
+            'mp3': 'audio/mpeg',
+            'mp4': 'video/mp4',
+            'avi': 'video/x-msvideo',
+            'mov': 'video/quicktime',
+            'wav': 'audio/wav',
+        }
         
-        # If we can't determine MIME type, fall back to Cloudinary's header or default
+        # Get MIME type
+        mime_type = mime_type_map.get(file_extension)
         if not mime_type:
-            mime_type = r.headers.get("Content-Type", "application/octet-stream")
+            # Try to guess from mimetypes module
+            mime_type, _ = mimetypes.guess_type(filename)
+            if not mime_type:
+                # Default to octet-stream
+                mime_type = 'application/octet-stream'
         
-        # Create response with proper headers
-        response = Response(
-            r.iter_content(1024),
-            content_type=mime_type
+        # Get disposition from query parameter
+        disposition = request.args.get("disposition", "inline")
+        
+        # For mobile optimization - certain files should always download
+        mobile_download_types = ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'zip', 'rar']
+        user_agent = request.headers.get('User-Agent', '').lower()
+        is_mobile = any(m in user_agent for m in ['mobile', 'android', 'iphone', 'ipad', 'ipod'])
+        
+        if is_mobile and file_extension in mobile_download_types:
+            disposition = "download"
+        
+        # Fetch the file from Cloudinary with timeout
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+        response = requests.get(url, stream=True, timeout=30, headers=headers)
+        response.raise_for_status()
+        
+        # Create Flask response
+        flask_response = Response(
+            response.iter_content(chunk_size=8192),
+            content_type=mime_type,
+            headers={
+                'Content-Disposition': f'{disposition}; filename="{filename}"',
+                'Cache-Control': 'public, max-age=86400',  # Cache for 24 hours
+                'Access-Control-Allow-Origin': '*',
+                'X-Content-Type-Options': 'nosniff'
+            }
         )
         
-        # Set Content-Disposition based on request (inline for viewing, attachment for download)
-        disposition = request.args.get("disposition", "inline")
-        if disposition == "download":
-            response.headers["Content-Disposition"] = f"attachment; filename={filename}"
-        else:
-            response.headers["Content-Disposition"] = f"inline; filename={filename}"
-            
-        return response
+        # Copy relevant headers from Cloudinary response
+        for header in ['Content-Length', 'Last-Modified', 'ETag']:
+            if header in response.headers:
+                flask_response.headers[header] = response.headers[header]
         
+        return flask_response
+        
+    except requests.exceptions.RequestException as e:
+        flash(f"Error accessing file: {str(e)}", "danger")
+        return redirect(request.referrer or url_for('student_dashboard'))
     except Exception as e:
-        return f"Error loading file: {str(e)}", 500
+        flash(f"Unexpected error: {str(e)}", "danger")
+        return redirect(request.referrer or url_for('student_dashboard'))
+
+# ---------------- ALTERNATIVE SIMPLE FILE ROUTE ----------------
+@app.route("/direct_file")
+def direct_file():
+    """Simple redirect to Cloudinary - works on most devices"""
+    url = request.args.get("url")
+    if not url:
+        return "File URL not provided", 400
+    return redirect(url)
 
 # ---------------- PLAGIARISM ----------------
 def calculate_hash(file):
