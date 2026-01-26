@@ -231,6 +231,31 @@ def delete_submission(submission_id):
     db.session.commit()
     flash("Submission deleted", "success")
     return redirect(url_for("student_dashboard"))
+@app.route("/student/delete_submission/<int:submission_id>", methods=["POST"])
+def delete_submission(submission_id):
+    if "student_id" not in session:
+        return redirect(url_for("student_login"))
+
+    submission = Submission.query.get_or_404(submission_id)
+
+    # Security: only owner can delete
+    if submission.student_id != session["student_id"]:
+        flash("Not allowed", "danger")
+        return redirect(url_for("student_dashboard"))
+
+    # Delete from Cloudinary
+    try:
+        public_id = submission.file_url.split("/")[-1].split(".")[0]
+        cloudinary.uploader.destroy(public_id, resource_type="raw")
+    except:
+        pass
+
+    # Delete from DB
+    db.session.delete(submission)
+    db.session.commit()
+
+    flash("Submission deleted", "success")
+    return redirect(url_for("student_dashboard"))
 
 @app.route("/student/logout")
 def student_logout():
@@ -360,6 +385,28 @@ def pending_students(assignment_id):
         assignment=assignment,
         pending_students=pending_students
     )
+@app.route("/teacher/delete_assignment/<int:assignment_id>", methods=["POST"])
+def delete_assignment(assignment_id):
+    if "teacher_id" not in session:
+        return redirect(url_for("teacher_login"))
+
+    assignment = Assignment.query.get_or_404(assignment_id)
+
+    # Delete assignment file from Cloudinary
+    try:
+        public_id = assignment.file_url.split("/")[-1].split(".")[0]
+        cloudinary.uploader.destroy(public_id, resource_type="raw")
+    except:
+        pass
+
+    # Also delete all submissions under it
+    Submission.query.filter_by(assignment_id=assignment.id).delete()
+
+    db.session.delete(assignment)
+    db.session.commit()
+
+    flash("Assignment deleted", "success")
+    return redirect(url_for("teacher_dashboard"))
 @app.route("/teacher/logout")
 def teacher_logout():
     session.clear()

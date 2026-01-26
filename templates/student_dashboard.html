@@ -5,12 +5,13 @@
     <meta charset="UTF-8">
     <title>Student Dashboard</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
+
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 
 <body class="bg-light">
 
-<!-- 🔝 NAVBAR -->
+<!-- ================= NAVBAR ================= -->
 <nav class="navbar navbar-dark bg-dark px-3 d-flex justify-content-between">
     <span class="navbar-brand fs-4">Student Dashboard</span>
 
@@ -27,48 +28,62 @@
 
 <!-- ================= AVAILABLE ASSIGNMENTS ================= -->
 <h4 class="mb-3">📄 Available Assignments</h4>
+
 <div class="row">
 
 {% set shown = false %}
 
 {% for a in assignments %}
-    {% set submission = submissions | selectattr("assignment_id", "equalto", a.id) | first %}
+
+    {% set submission = submissions | selectattr("assignment_id","equalto",a.id) | first %}
     {% set expired = a.due_date < current_date %}
 
     {% if not submission %}
-    {% set shown = true %}
-    <div class="col-lg-6 col-md-6 mb-3">
-        <div class="card h-100 shadow-sm {% if expired %}border-danger{% else %}border-success{% endif %}">
-            <div class="card-body">
-                <h5 class="card-title">{{ a.title }}</h5>
+        {% set shown = true %}
 
-                <p class="mb-1">
-                    <strong>Class:</strong> {{ a.branch }} {{ a.year }}-{{ a.section }}
-                </p>
+        <div class="col-lg-6 col-md-6 mb-3">
 
-                <p class="mb-1">
-                    <strong>Due Date:</strong> {{ a.due_date.strftime('%d-%m-%Y') }}
-                </p>
+            <div class="card h-100 shadow-sm {% if expired %}border-danger{% else %}border-success{% endif %}">
 
-                {% if expired %}
-                    <span class="badge bg-danger">Submission Closed</span>
-                {% else %}
-                    <span class="badge bg-success">Open</span>
-                {% endif %}
+                <div class="card-body">
 
-                <div class="mt-3">
+                    <h5 class="card-title">{{ a.title }}</h5>
 
-                    <!-- Preview + Download using open_file route -->
-                    <div class="d-flex gap-2 flex-wrap mb-2">
-                        <a href="{{ url_for('open_file') }}?url={{ a.file_url }}" target="_blank" class="btn btn-sm btn-primary flex-fill">
+                    <p class="mb-1">
+                        <strong>Class:</strong>
+                        {{ a.branch }} {{ a.year }} - {{ a.section }}
+                    </p>
+
+                    <p class="mb-1">
+                        <strong>Due Date:</strong>
+                        {{ a.due_date.strftime('%d-%m-%Y') }}
+                    </p>
+
+                    {% if expired %}
+                        <span class="badge bg-danger">Submission Closed</span>
+                    {% else %}
+                        <span class="badge bg-success">Open</span>
+                    {% endif %}
+
+                    <!-- ===== Preview & Download ===== -->
+                    <div class="d-flex gap-2 flex-wrap mt-3 mb-2">
+
+                        <a href="{{ url_for('open_file') }}?url={{ a.file_url }}"
+                           target="_blank"
+                           class="btn btn-sm btn-primary flex-fill">
                             Preview
                         </a>
-                        <a href="{{ url_for('open_file') }}?url={{ a.file_url }}&dl=true" class="btn btn-sm btn-secondary flex-fill">
+
+                        <a href="{{ url_for('open_file') }}?url={{ a.file_url }}&dl=true"
+                           class="btn btn-sm btn-secondary flex-fill">
                             Download
                         </a>
+
                     </div>
 
                     {% if not expired %}
+
+                    <!-- ===== Upload Form ===== -->
                     <form method="POST"
                           action="{{ url_for('submit_assignment', assignment_id=a.id) }}"
                           enctype="multipart/form-data">
@@ -82,7 +97,9 @@
                                 class="btn btn-sm btn-success w-100">
                             Submit Assignment
                         </button>
+
                     </form>
+
                     {% else %}
                         <div class="text-danger fw-bold text-center">
                             Deadline crossed
@@ -92,7 +109,7 @@
                 </div>
             </div>
         </div>
-    </div>
+
     {% endif %}
 {% endfor %}
 
@@ -104,62 +121,100 @@
 
 <!-- ================= SUBMITTED ASSIGNMENTS ================= -->
 <h4 class="mt-5 mb-3">✅ Submitted Assignments</h4>
+
 <div class="row">
 
 {% if submissions %}
+
 {% for s in submissions %}
-    {% set a = assignments | selectattr("id", "equalto", s.assignment_id) | first %}
+
+    {% set a = assignments | selectattr("id","equalto",s.assignment_id) | first %}
 
     <div class="col-lg-6 col-md-6 mb-3">
+
         <div class="card h-100 shadow-sm border-info">
+
             <div class="card-body">
+
                 <h5 class="card-title">{{ a.title }}</h5>
 
                 <p class="mb-1">
-                    <strong>Due Date:</strong> {{ a.due_date.strftime('%d-%m-%Y') }}
+                    <strong>Due Date:</strong>
+                    {{ a.due_date.strftime('%d-%m-%Y') }}
                 </p>
 
+                <!-- ===== Plagiarism ===== -->
                 <p class="mb-1">
                     <strong>Plagiarism:</strong>
+
                     {% if s.plagiarism_score is not none %}
                         {% if s.plagiarism_score > 50 %}
-                            <span class="badge bg-danger">{{ s.plagiarism_score }}%</span>
+                            <span class="badge bg-danger">
+                                {{ s.plagiarism_score }}%
+                            </span>
                         {% else %}
-                            <span class="badge bg-success">{{ s.plagiarism_score }}%</span>
+                            <span class="badge bg-success">
+                                {{ s.plagiarism_score }}%
+                            </span>
                         {% endif %}
                     {% else %}
                         <span class="badge bg-secondary">Pending</span>
                     {% endif %}
                 </p>
 
+                <!-- ===== Marks ===== -->
                 <p class="mb-2">
                     <strong>Marks:</strong>
+
                     {% if s.marks is not none %}
-                        <span class="badge bg-primary">{{ s.marks }}/5</span>
+                        <span class="badge bg-primary">
+                            {{ s.marks }}/5
+                        </span>
                     {% else %}
-                        <span class="badge bg-warning text-dark">Not Released</span>
+                        <span class="badge bg-warning text-dark">
+                            Not Released
+                        </span>
                     {% endif %}
                 </p>
 
+                <!-- ===== Preview & Download ===== -->
                 <div class="d-flex gap-2 flex-wrap mb-2">
-                    <a href="{{ url_for('open_file') }}?url={{ s.file_url }}" target="_blank" class="btn btn-sm btn-primary flex-fill">
+
+                    <a href="{{ url_for('open_file') }}?url={{ s.file_url }}"
+                       target="_blank"
+                       class="btn btn-sm btn-primary flex-fill">
                         Preview
                     </a>
-                    <a href="{{ url_for('open_file') }}?url={{ s.file_url }}&dl=true" class="btn btn-sm btn-secondary flex-fill">
+
+                    <a href="{{ url_for('open_file') }}?url={{ s.file_url }}&dl=true"
+                       class="btn btn-sm btn-secondary flex-fill">
                         Download
                     </a>
+
                 </div>
 
+                <!-- ===== Delete Button (Before due date only) ===== -->
                 {% if a.due_date >= current_date %}
-                <form action="{{ url_for('delete_submission', submission_id=s.id) }}" method="POST">
-    <button type="submit" class="btn btn-danger btn-sm">Delete</button>
-</form>
+
+                <form action="{{ url_for('delete_submission', submission_id=s.id) }}"
+                      method="POST"
+                      onsubmit="return confirm('Delete this submission?');">
+
+                    <button type="submit"
+                            class="btn btn-danger btn-sm w-100">
+                        Delete Submission
+                    </button>
+
+                </form>
+
                 {% endif %}
 
             </div>
         </div>
     </div>
+
 {% endfor %}
+
 {% else %}
     <p class="text-muted">No submissions yet.</p>
 {% endif %}
@@ -167,5 +222,6 @@
 </div>
 
 </div>
+
 </body>
 </html>
