@@ -35,6 +35,7 @@ cloudinary.config(
 )
 
 # ---------------- MODELS ----------------
+
 class Teacher(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100))
@@ -77,6 +78,7 @@ with app.app_context():
     db.create_all()
 
 # ---------------- PLAGIARISM ----------------
+
 def calculate_hash(file):
     file.stream.seek(0)
     data = file.stream.read()
@@ -91,12 +93,13 @@ def plagiarism_check(assignment_id, file_hash):
     return 95.0 if exists else 5.0
 
 # ---------------- HOME ----------------
+
 @app.route("/")
 def home():
     return redirect(url_for("student_login"))
 
 # =====================================================
-# ✅ MOBILE FRIENDLY FILE OPEN ROUTE (IMPORTANT FIX)
+# ✅ MOBILE FRIENDLY FILE PREVIEW ROUTE
 # =====================================================
 
 @app.route("/open-file")
@@ -113,7 +116,7 @@ def open_file():
         filename = file_url.split("/")[-1].split("?")[0]
 
         mimetype, _ = mimetypes.guess_type(filename)
-        if mimetype is None:
+        if not mimetype:
             mimetype = "application/octet-stream"
 
         return send_file(
@@ -159,7 +162,6 @@ def student_register():
         db.session.commit()
 
         session["student_id"] = student.id
-        session["student_name"] = student.name
 
         return redirect(url_for("student_dashboard"))
 
@@ -175,7 +177,6 @@ def student_login():
 
         if student and check_password_hash(student.password, password):
             session["student_id"] = student.id
-            session["student_name"] = student.name
             return redirect(url_for("student_dashboard"))
 
         flash("Invalid credentials", "danger")
@@ -205,7 +206,6 @@ def student_dashboard():
     for a in assignments:
         days_left = (a.due_date - today).days
         color = "green" if days_left > 2 else "orange" if days_left >= 0 else "red"
-        can_upload = days_left >= 0
 
         if a.id in submitted_map:
             s = submitted_map[a.id]
@@ -223,11 +223,12 @@ def student_dashboard():
                 "assignment": a,
                 "days_left": days_left,
                 "color": color,
-                "can_upload": can_upload
+                "can_upload": days_left >= 0
             })
 
     return render_template(
         "student_dashboard.html",
+        student=student,   # ✅ FIXED
         available_assignments=available_assignments,
         submitted_assignments=submitted_assignments
     )
@@ -243,6 +244,13 @@ def submit_assignment(assignment_id):
         flash("Deadline passed", "danger")
         return redirect(url_for("student_dashboard"))
 
+    if Submission.query.filter_by(
+        student_id=session["student_id"],
+        assignment_id=assignment_id
+    ).first():
+        flash("Already submitted", "warning")
+        return redirect(url_for("student_dashboard"))
+
     file = request.files.get("file")
     if not file:
         flash("Select file", "danger")
@@ -253,7 +261,7 @@ def submit_assignment(assignment_id):
 
     upload = cloudinary.uploader.upload(
         file,
-        resource_type="auto",   # ✅ IMPORTANT FIX
+        resource_type="auto",   # ✅ MOBILE FIX
         use_filename=True,
         unique_filename=True
     )
@@ -301,8 +309,14 @@ def teacher_dashboard():
     if "teacher_id" not in session:
         return redirect(url_for("teacher_login"))
 
+    teacher = Teacher.query.get(session["teacher_id"])
     assignments = Assignment.query.all()
-    return render_template("teacher_dashboard.html", assignments=assignments)
+
+    return render_template(
+        "teacher_dashboard.html",
+        teacher=teacher,     # ✅ FIXED
+        assignments=assignments
+    )
 
 @app.route("/teacher/upload", methods=["POST"])
 def teacher_upload():
@@ -317,7 +331,7 @@ def teacher_upload():
 
     upload = cloudinary.uploader.upload(
         file,
-        resource_type="auto",  # ✅ FIXED
+        resource_type="auto",   # ✅ MOBILE FIX
         use_filename=True,
         unique_filename=True
     )
@@ -343,5 +357,6 @@ def teacher_logout():
     return redirect(url_for("teacher_login"))
 
 # ---------------- RUN ----------------
+
 if __name__ == "__main__":
     app.run(debug=True)
