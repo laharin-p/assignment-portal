@@ -2,110 +2,44 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Pending Students | Assignment Portal</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-
-<style>
-body {
-    background:#f8f9fa;
-}
-
-.pending-row {
-    background:#fff3cd;
-}
-
-.no-pending {
-    color:#198754;
-    font-weight:600;
-    font-size:1.1rem;
-}
-
-.deadline-box{
-    background:#ffffff;
-    border-left:5px solid #dc3545;
-    padding:12px 15px;
-    border-radius:6px;
-    margin-bottom:15px;
-}
-
-td, th {
-    vertical-align: middle;
-}
-
-.badge-pending{
-    background:#ffc107;
-    color:#000;
-}
-</style>
+    <meta charset="UTF-8">
+    <title>Pending Students</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
-
-<body>
+<body class="bg-light">
 
 <div class="container mt-4">
+    <h3>Pending Students for: {{ assignment.title }}</h3>
 
-<h4 class="mb-2">
-⏳ Pending Students — <strong>{{ assignment.title }}</strong>
-</h4>
+    <a href="{{ url_for('teacher_dashboard') }}" class="btn btn-secondary mb-3">
+        Back to Dashboard
+    </a>
 
-<div class="deadline-box">
-📅 Deadline: 
-<strong>{{ assignment.due_date.strftime('%d-%m-%Y') }}</strong>
-</div>
-
-<div class="table-responsive">
-
-<table class="table table-bordered table-hover align-middle">
-
-<thead class="table-danger">
-<tr>
-<th>Name</th>
-<th>Roll No</th>
-<th>Email</th>
-<th>Phone</th>
-<th>Status</th>
-</tr>
-</thead>
-
-<tbody>
-
-{% for s in students %}
-
-<tr class="pending-row">
-
-<td>{{ s.name }}</td>
-<td>{{ s.roll_no }}</td>
-<td>{{ s.email }}</td>
-<td>{{ s.phone }}</td>
-
-<td>
-<span class="badge badge-pending">Pending</span>
-</td>
-
-</tr>
-
-{% else %}
-
-<tr>
-<td colspan="5" class="text-center no-pending">
-🎉 All students have submitted this assignment!
-</td>
-</tr>
-
-{% endfor %}
-
-</tbody>
-
-</table>
-
-</div>
-
-<a href="{{ url_for('teacher_dashboard') }}" class="btn btn-secondary mt-3">
-← Back to Dashboard
-</a>
-
+    <table class="table table-bordered table-hover align-middle">
+        <thead class="table-dark">
+            <tr>
+                <th>Roll No</th>
+                <th>Student Name</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% if pending_students %}
+                {% for student in pending_students %}
+                <tr>
+                    <td>{{ student.roll_no }}</td>
+                    <td>{{ student.name }}</td>
+                </tr>
+                {% endfor %}
+            {% else %}
+                <tr>
+                    <td colspan="2" class="text-center text-success">
+                        All students have submitted this assignment
+                    </td>
+                </tr>
+            {% endif %}
+        </tbody>
+    </table>
 </div>
 
 </body>

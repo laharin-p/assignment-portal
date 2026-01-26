@@ -340,6 +340,26 @@ def teacher_submissions(assignment_id):
         submissions=submissions,
         current_date=date.today()
     )
+@app.route('/teacher/pending/<int:assignment_id>')
+def pending_students(assignment_id):
+    assignment = Assignment.query.get_or_404(assignment_id)
+    
+    # All students
+    all_students = Student.query.all()
+    
+    # Students who submitted
+    submitted_students_ids = [
+        sub.student_id for sub in Submission.query.filter_by(assignment_id=assignment_id).all()
+    ]
+    
+    # Pending students = all - submitted
+    pending_students = [s for s in all_students if s.id not in submitted_students_ids]
+
+    return render_template(
+        'teacher_pending.html',
+        assignment=assignment,
+        pending_students=pending_students
+    )
 @app.route("/teacher/logout")
 def teacher_logout():
     session.clear()
