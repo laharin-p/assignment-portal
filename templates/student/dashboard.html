@@ -97,7 +97,7 @@ tr.red { background: #f8d7da; }
 <body>
 
 <h1>
-Welcome, {{ session.get("student_name") }}
+Welcome, {{ session.get("student_name", student.name) }}
 <a class="logout" href="{{ url_for('student_logout') }}">Logout</a>
 </h1>
 
@@ -170,7 +170,7 @@ Welcome, {{ session.get("student_name") }}
 
 <!-- Mobile friendly open -->
 <a class="btn view-btn"
-   href="{{ url_for('view_file') }}?file_url={{ item.file_url | urlencode }}"
+   href="{{ url_for('direct_file') }}?file_url={{ item.file_url | urlencode }}"
    target="_blank">
    Open / Preview
 </a>
