@@ -17,6 +17,7 @@ DATABASE_URL = os.environ.get("DATABASE_URL")
 if not DATABASE_URL:
     raise RuntimeError("DATABASE_URL is not set")
 
+# Fix for Render Postgres URL
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
@@ -32,7 +33,7 @@ cloudinary.config(
     secure=True
 )
 
-# ---------------- FILE PROXY FOR PDF ----------------
+# ---------------- FILE PROXY ----------------
 @app.route("/file")
 def open_file():
     url = request.args.get("url")
@@ -112,14 +113,37 @@ def home():
 @app.route("/student/register", methods=["GET", "POST"])
 def student_register():
     if request.method == "POST":
+        # Collect form data
         name = request.form["name"]
+        roll_no = request.form["rollno"]
+        branch = request.form["branch"]
+        year = request.form["year"]
+        section = request.form["section"]
+        phone = request.form["phone"]
         email = request.form["email"]
         password = generate_password_hash(request.form["password"])
-        new_student = Student(name=name, email=email, password=password)
+
+        # Prevent duplicate email
+        if Student.query.filter_by(email=email).first():
+            flash("Email already registered!", "danger")
+            return render_template("student/register.html")
+
+        # Save student
+        new_student = Student(
+            name=name,
+            roll_no=roll_no,
+            branch=branch,
+            year=year,
+            section=section,
+            phone=phone,
+            email=email,
+            password=password
+        )
         db.session.add(new_student)
         db.session.commit()
         flash("Registration successful! Please login.", "success")
         return redirect(url_for("student_login"))
+
     return render_template("student/register.html")
 
 @app.route("/student/login", methods=["GET", "POST"])
@@ -129,11 +153,9 @@ def student_login():
         password = request.form["password"]
         student = Student.query.filter_by(email=email).first()
         if student and check_password_hash(student.password, password):
-            session.clear()
             session["student_id"] = student.id
             return redirect(url_for("student_dashboard"))
-        else:
-            flash("Invalid email or password", "danger")
+        flash("Invalid email or password", "danger")
     return render_template("student/login.html")
 
 @app.route("/student/dashboard")
@@ -158,11 +180,13 @@ def submit_assignment(assignment_id):
         flash("No file selected", "danger")
         return redirect(url_for("student_dashboard"))
 
+    # Prevent duplicate submission
     if Submission.query.filter_by(student_id=session["student_id"], assignment_id=assignment_id).first():
         flash("Assignment already submitted", "warning")
         return redirect(url_for("student_dashboard"))
 
     upload = cloudinary.uploader.upload(file, resource_type="raw")
+
     submission = Submission(
         student_id=session["student_id"],
         assignment_id=assignment_id,
@@ -200,7 +224,7 @@ def teacher_register():
     if request.method == "POST":
         if Teacher.query.filter_by(email=request.form["email"]).first():
             flash("Teacher already exists", "danger")
-            return redirect(url_for("teacher_login"))
+            return redirect(url_for("teacher_register"))
 
         teacher = Teacher(
             name=request.form["name"],
@@ -252,11 +276,7 @@ def teacher_submissions(assignment_id):
 
     assignment = Assignment.query.get_or_404(assignment_id)
     submissions = Submission.query.filter_by(assignment_id=assignment_id).all()
-    return render_template(
-        "teacher/submissions.html",
-        assignment=assignment,
-        submissions=submissions
-    )
+    return render_template("teacher/submissions.html", assignment=assignment, submissions=submissions)
 
 @app.route("/teacher/upload", methods=["POST"])
 def teacher_upload():
