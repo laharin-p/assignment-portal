@@ -143,7 +143,6 @@ def student_login():
             return render_template("student/login.html")  # ✅ only on failure
     return render_template("student/login.html")
 
-
 @app.route("/student/dashboard")
 def student_dashboard():
     if "student_id" not in session:
