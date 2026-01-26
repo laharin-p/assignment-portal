@@ -118,55 +118,30 @@ def home():
 @app.route("/student/register", methods=["GET", "POST"])
 def student_register():
     if request.method == "POST":
-
-        if Student.query.filter(
-            (Student.email == request.form["email"]) |
-            (Student.roll_no == request.form["rollno"])
-        ).first():
-            return render_template(
-                "student_register.html",
-                error="Roll number or Email already exists"
-            )
-
-        student = Student(
-            name=request.form["name"],
-            roll_no=request.form["rollno"],
-            branch=request.form["branch"],
-            year=request.form["year"],
-            section=request.form["section"],
-            phone=request.form["phone"],
-            email=request.form["email"],
-            password=generate_password_hash(request.form["password"])
-        )
-
-        db.session.add(student)
+        name = request.form["name"]
+        email = request.form["email"]
+        password = generate_password_hash(request.form["password"])
+        # Save student to DB
+        new_student = Student(name=name, email=email, password=password)
+        db.session.add(new_student)
         db.session.commit()
-
-        session["student_id"] = student.id
-        session["student_name"] = student.name
-
-        return redirect(url_for("student_dashboard"))
-
-    return render_template("student_register.html")
-
+        flash("Registration successful! Please login.", "success")
+        return redirect(url_for("student_login"))  # ✅ redirect to login
+    return render_template("student/register.html")
 
 @app.route("/student/login", methods=["GET", "POST"])
 def student_login():
     if request.method == "POST":
-
-        student = Student.query.filter_by(
-            email=request.form["email"]
-        ).first()
-
-        if student and check_password_hash(student.password, request.form["password"]):
-            session.clear()
+        email = request.form["email"]
+        password = request.form["password"]
+        student = Student.query.filter_by(email=email).first()
+        if student and check_password_hash(student.password, password):
             session["student_id"] = student.id
-            session["student_name"] = student.name
-            return redirect(url_for("student_dashboard"))
-
-        flash("Invalid email or password", "danger")
-
-    return render_template("student_login.html")
+            return redirect(url_for("student_dashboard"))  # ✅ redirect
+        else:
+            flash("Invalid email or password", "danger")
+            return render_template("student/login.html")  # ✅ only on failure
+    return render_template("student/login.html")
 
 
 @app.route("/student/dashboard")
