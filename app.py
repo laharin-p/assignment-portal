@@ -350,6 +350,24 @@ def teacher_upload():
 
     flash("Assignment uploaded", "success")
     return redirect(url_for("teacher_dashboard"))
+@app.route("/student/delete-submission/<int:submission_id>", methods=["POST"])
+def delete_submission(submission_id):
+
+    if "student_id" not in session:
+        return redirect(url_for("student_login"))
+
+    submission = Submission.query.get_or_404(submission_id)
+
+    # Security: allow only owner to delete
+    if submission.student_id != session["student_id"]:
+        abort(403)
+
+    db.session.delete(submission)
+    db.session.commit()
+
+    flash("Submission deleted successfully", "success")
+
+    return redirect(url_for("student_dashboard"))
 
 @app.route("/teacher/logout")
 def teacher_logout():
