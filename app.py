@@ -108,19 +108,32 @@ def open_file():
     )
    
 # ---------------- PLAGIARISM ----------------
-def calculate_hash(file):
-    file.stream.seek(0)
-    content = file.stream.read()
-    file.stream.seek(0)
-    return hashlib.sha256(content).hexdigest()
+def plagiarism_check(assignment_id, new_file_content):
+    old_submissions = Submission.query.filter_by(assignment_id=assignment_id).all()
 
-def plagiarism_check(assignment_id, file_hash):
-    exists = Submission.query.filter_by(
-        assignment_id=assignment_id,
-        file_hash=file_hash
-    ).first()
-    return 95.0 if exists else 5.0
+    if not old_submissions:
+        return 0.0   # First submission → no plagiarism
 
+    new_words = set(new_file_content.lower().split())
+
+    highest_score = 0
+
+    for sub in old_submissions:
+        try:
+            response = requests.get(sub.file_url)
+            old_content = response.text.lower()
+            old_words = set(old_content.split())
+
+            common_words = new_words.intersection(old_words)
+
+            if len(new_words) > 0:
+                similarity = (len(common_words) / len(new_words)) * 100
+                highest_score = max(highest_score, similarity)
+
+        except:
+            continue
+
+    return round(highest_score, 2)
 # ---------------- HOME ----------------
 @app.route("/")
 def home():
@@ -192,9 +205,12 @@ def submit_assignment(assignment_id):
         flash("No file selected", "danger")
         return redirect(url_for("student_dashboard"))
 
-    file_hash = calculate_hash(file)
-    score = plagiarism_check(assignment_id, file_hash)
+    file_content = file.read().decode(errors="ignore")
+    file.seek(0)
 
+    score = plagiarism_check(assignment_id, file_content)
+
+    file_hash = calculate_hash(file)
     upload = cloudinary.uploader.upload(
         file,
         resource_type="raw",
