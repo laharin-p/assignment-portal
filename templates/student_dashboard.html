@@ -154,19 +154,19 @@ tr.red { background: #f8d7da; }
 
 <td>
 
-<!-- ✅ Open / Preview (mobile + desktop) -->
+<!-- ✅ MOBILE + DESKTOP PREVIEW (FIXED ROUTE) -->
 <a class="btn view-btn"
-   href="{{ url_for('direct_file') }}?file_url={{ item.file_url | urlencode }}"
+   href="{{ url_for('open_file') }}?file_url={{ item.file_url | urlencode }}"
    target="_blank" rel="noopener noreferrer">
    Open / Preview
 </a>
 
 <br><br>
 
-<!-- ✅ Download -->
+<!-- ✅ SAFE DOWNLOAD (OPEN THEN SAVE FROM BROWSER) -->
 <a class="btn btn-secondary"
-   href="{{ url_for('direct_file') }}?file_url={{ item.file_url | urlencode }}"
-   download>
+   href="{{ url_for('open_file') }}?file_url={{ item.file_url | urlencode }}"
+   target="_blank">
    Download
 </a>
 
