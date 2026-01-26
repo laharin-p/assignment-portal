@@ -161,60 +161,57 @@ def student_login():
 
     return render_template("student/login.html")
 
-
-
-
-
 @app.route("/student/dashboard")
 def student_dashboard():
     if "student_id" not in session:
         return redirect(url_for("student_login"))
 
+    # Fetch the logged-in student
     student = Student.query.get(session["student_id"])
 
-    # Normalize inputs for comparison
-    student_branch = student.branch.strip().upper()
-    student_year = student.year.strip()
-    student_section = student.section.strip().upper()
+    # Assignments for the student's class
+    assignments = Assignment.query.filter_by(
+        branch=student.branch,
+        year=student.year,
+        section=student.section
+    ).all()
 
-    # Fetch assignments for this student
-    all_assignments = Assignment.query.filter(
-        db.func.upper(db.func.trim(Assignment.branch)) == student_branch,
-        db.func.trim(Assignment.year) == student_year,
-        db.func.upper(db.func.trim(Assignment.section)) == student_section
-    ).order_by(Assignment.due_date.asc()).all()
-
-    # Fetch student's submissions
+    # Submissions by this student
     submissions = Submission.query.filter_by(student_id=student.id).all()
-    submitted_assignment_ids = {s.assignment_id for s in submissions}
 
-    # Prepare available assignments
+    # Prepare dynamic info for template
     available_assignments = []
-    for a in all_assignments:
-        days_left = (a.due_date - date.today()).days
-        available_assignments.append({
-            "assignment": a,
-            "days_left": max(days_left, 0),
-            "can_upload": a.id not in submitted_assignment_ids and days_left >= 0,
-            "color": "green" if days_left > 3 else "orange" if days_left >= 0 else "red"
-        })
-
-    # Prepare submitted assignments
     submitted_assignments = []
-    for s in submissions:
-        days_left = (s.assignment.due_date - date.today()).days
-        submitted_assignments.append({
-            "assignment": s.assignment,
-            "submitted_on": s.submitted_on.strftime("%Y-%m-%d %H:%M"),
-            "plagiarism_score": s.plagiarism_score,
-            "days_left": max(days_left, 0),
-            "file_url": s.file_url,
-            "color": "green" if days_left > 3 else "orange" if days_left >= 0 else "red"
-        })
 
+    today = date.today()
+
+    for a in assignments:
+        # Check if student already submitted
+        sub = next((s for s in submissions if s.assignment_id == a.id), None)
+        days_left = (a.due_date - today).days
+        color = "green" if days_left > 2 else "orange" if days_left >= 0 else "red"
+
+        if sub:
+            submitted_assignments.append({
+                "assignment": a,
+                "submitted_on": sub.submitted_on.strftime("%Y-%m-%d %H:%M"),
+                "plagiarism_score": sub.plagiarism_score,
+                "days_left": days_left,
+                "color": color,
+                "file_url": sub.file_url
+            })
+        else:
+            available_assignments.append({
+                "assignment": a,
+                "days_left": days_left,
+                "color": color,
+                "can_upload": days_left >= 0
+            })
+
+    # Pass student object so template can use student.name
     return render_template(
         "student/dashboard.html",
-        student_name=student.name,
+        student=student,
         available_assignments=available_assignments,
         submitted_assignments=submitted_assignments
     )
