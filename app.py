@@ -163,6 +163,8 @@ def student_login():
 
 
 
+
+
 @app.route("/student/dashboard")
 def student_dashboard():
     if "student_id" not in session:
@@ -170,16 +172,18 @@ def student_dashboard():
 
     student = Student.query.get(session["student_id"])
 
-    # ✅ only show assignments for that student's class
-    assignments = Assignment.query.filter_by(
-        branch=student.branch,
-        year=student.year,
-        section=student.section
-    ).all()
+    # Normalize for filtering
+    student_branch = student.branch.strip().upper()
+    student_year = student.year.strip()
+    student_section = student.section.strip().upper()
 
-    submissions = Submission.query.filter_by(
-        student_id=student.id
-    ).all()
+    assignments = Assignment.query.filter(
+        db.func.upper(db.func.trim(Assignment.branch)) == student_branch,
+        db.func.trim(Assignment.year) == student_year,
+        db.func.upper(db.func.trim(Assignment.section)) == student_section
+    ).order_by(Assignment.due_date.asc()).all()
+
+    submissions = Submission.query.filter_by(student_id=student.id).all()
 
     return render_template(
         "student/dashboard.html",

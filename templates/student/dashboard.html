@@ -1,216 +1,54 @@
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<title>Student Dashboard | Assignment Portal</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
+@app.route("/student/dashboard")
+def student_dashboard():
+    if "student_id" not in session:
+        return redirect(url_for("student_login"))
 
-<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    student = Student.query.get(session["student_id"])
 
-<style>
-body {
-    font-family: Arial, sans-serif;
-    background: #f8f9fa;
-    padding: 20px;
-}
+    # Normalize inputs for comparison
+    student_branch = student.branch.strip().upper()
+    student_year = student.year.strip()
+    student_section = student.section.strip().upper()
 
-h1, h2 { color: #333; }
+    # Fetch assignments for this student
+    all_assignments = Assignment.query.filter(
+        db.func.upper(db.func.trim(Assignment.branch)) == student_branch,
+        db.func.trim(Assignment.year) == student_year,
+        db.func.upper(db.func.trim(Assignment.section)) == student_section
+    ).order_by(Assignment.due_date.asc()).all()
 
-.table-wrapper{
-    overflow-x:auto;
-}
+    # Fetch student's submissions
+    submissions = Submission.query.filter_by(student_id=student.id).all()
+    submitted_assignment_ids = {s.assignment_id for s in submissions}
 
-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-bottom: 20px;
-    background: white;
-}
+    # Prepare available assignments
+    available_assignments = []
+    for a in all_assignments:
+        days_left = (a.due_date - date.today()).days
+        available_assignments.append({
+            "assignment": a,
+            "days_left": max(days_left, 0),
+            "can_upload": a.id not in submitted_assignment_ids and days_left >= 0,
+            "color": "green" if days_left > 3 else "orange" if days_left >= 0 else "red"
+        })
 
-th, td {
-    padding: 10px;
-    text-align: center;
-    border: 1px solid #dee2e6;
-}
+    # Prepare submitted assignments
+    submitted_assignments = []
+    for s in submissions:
+        days_left = (s.assignment.due_date - date.today()).days
+        submitted_assignments.append({
+            "assignment": s.assignment,
+            "submitted_on": s.submitted_on.strftime("%Y-%m-%d %H:%M"),
+            "plagiarism_score": s.plagiarism_score,
+            "days_left": max(days_left, 0),
+            "file_url": s.file_url,
+            "color": "green" if days_left > 3 else "orange" if days_left >= 0 else "red"
+        })
 
-th {
-    background: #343a40;
-    color: white;
-}
-
-tr.green { background: #d4edda; }
-tr.orange { background: #fff3cd; }
-tr.red { background: #f8d7da; }
-
-.btn {
-    display: inline-block;
-    padding: 6px 14px;
-    border-radius: 4px;
-    color: white;
-    text-decoration: none;
-    font-size: 14px;
-    border: none;
-    cursor: pointer;
-}
-
-.view-btn { background: #28a745; }
-.btn-secondary { background: #007bff; }
-
-.flash {
-    padding: 12px;
-    margin: 8px 0;
-    border-radius: 5px;
-    color: white;
-    font-size: 14px;
-}
-
-.flash.success { background: #28a745; }
-.flash.danger { background: #dc3545; }
-.flash.warning { background: #ffc107; color: black; }
-.flash.info { background: #17a2b8; }
-
-.logout{
-    float:right;
-    text-decoration:none;
-    color:#007bff;
-    font-weight:600;
-}
-
-.logout:hover{
-    text-decoration:underline;
-}
-
-@media (max-width: 768px) {
-    th, td {
-        font-size: 13px;
-        padding: 8px;
-    }
-
-    input[type=file] {
-        width: 100%;
-    }
-}
-</style>
-</head>
-
-<body>
-
-<h1>
-Welcome, {{ session.get("student_name") }}
-<a class="logout" href="{{ url_for('student_logout') }}">Logout</a>
-</h1>
-
-<hr>
-
-<h2>Available Assignments</h2>
-
-{% if available_assignments %}
-<div class="table-wrapper">
-<table>
-<tr>
-    <th>Title</th>
-    <th>Due In (Days)</th>
-    <th>Upload</th>
-</tr>
-
-{% for item in available_assignments %}
-<tr class="{{ item.color }}">
-
-<td>{{ item.assignment.title }}</td>
-<td>{{ item.days_left }}</td>
-
-<td>
-{% if item.can_upload %}
-<form action="{{ url_for('submit_assignment', assignment_id=item.assignment.id) }}"
-      method="POST"
-      enctype="multipart/form-data">
-
-    <input type="file" name="file" required>
-    <br><br>
-    <button type="submit" class="btn view-btn">Upload</button>
-</form>
-{% else %}
-<strong>Deadline Passed</strong>
-{% endif %}
-</td>
-
-</tr>
-{% endfor %}
-</table>
-</div>
-{% else %}
-<p>No assignments available.</p>
-{% endif %}
-
-<hr>
-
-<h2>Submitted Assignments</h2>
-
-{% if submitted_assignments %}
-<div class="table-wrapper">
-<table>
-<tr>
-    <th>Title</th>
-    <th>Submitted On</th>
-    <th>Plagiarism</th>
-    <th>Days Left</th>
-    <th>File</th>
-</tr>
-
-{% for item in submitted_assignments %}
-<tr class="{{ item.color }}">
-
-<td>{{ item.assignment.title }}</td>
-<td>{{ item.submitted_on }}</td>
-<td>{{ item.plagiarism_score }}%</td>
-<td>{{ item.days_left }}</td>
-
-<td>
-
-<!-- Mobile friendly open -->
-<a class="btn view-btn"
-   href="{{ url_for('view_file') }}?file_url={{ item.file_url | urlencode }}"
-   target="_blank">
-   Open / Preview
-</a>
-
-<br><br>
-
-<!-- Direct download -->
-<a class="btn btn-secondary"
-   href="{{ item.file_url }}"
-   download>
-   Download
-</a>
-
-</td>
-
-</tr>
-{% endfor %}
-</table>
-</div>
-
-{% else %}
-<p>No submissions yet.</p>
-{% endif %}
-
-<!-- ===== FLASH MESSAGES ===== -->
-{% with messages = get_flashed_messages(with_categories=true) %}
-{% if messages %}
-<div style="position: fixed; top: 20px; right: 20px; max-width: 320px; z-index: 1000;">
-{% for category, message in messages %}
-<div class="flash {{ category }}">{{ message }}</div>
-{% endfor %}
-</div>
-
-<script>
-setTimeout(() => {
-    document.querySelectorAll(".flash").forEach(msg => msg.remove());
-}, 4000);
-</script>
-{% endif %}
-{% endwith %}
-
-</body>
-</html>
+    return render_template(
+        "student/dashboard.html",
+        student_name=student.name,
+        available_assignments=available_assignments,
+        submitted_assignments=submitted_assignments
+    )
