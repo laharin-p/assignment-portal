@@ -15,9 +15,7 @@ body {
     padding: 20px;
 }
 
-h1, h2 {
-    color: #333;
-}
+h1, h2 { color: #333; }
 
 table {
     width: 100%;
@@ -52,17 +50,8 @@ tr.red { background: #f8d7da; }
     cursor: pointer;
 }
 
-.view-btn {
-    background: #28a745;
-}
-
-.btn-secondary {
-    background: #007bff;
-}
-
-.delete-btn {
-    background: #dc3545;
-}
+.view-btn { background: #28a745; }
+.btn-secondary { background: #007bff; }
 
 .flash {
     padding: 12px;
@@ -90,7 +79,7 @@ tr.red { background: #f8d7da; }
 
 <body>
 
-<h1>Welcome, {{ student.name }}</h1>
+<h1>Welcome, {{ session["student_name"] }}</h1>
 <a href="{{ url_for('student_logout') }}">Logout</a>
 
 <hr>
@@ -141,7 +130,6 @@ tr.red { background: #f8d7da; }
     <th>Plagiarism</th>
     <th>Days Left</th>
     <th>File</th>
-    <th>Action</th>
 </tr>
 
 {% for item in submitted_assignments %}
@@ -154,31 +142,22 @@ tr.red { background: #f8d7da; }
 
 <td>
 
-<!-- ✅ MOBILE + DESKTOP PREVIEW (FIXED ROUTE) -->
+<!-- ✅ BEST MOBILE OPEN (REDIRECT METHOD) -->
 <a class="btn view-btn"
-   href="{{ url_for('open_file') }}?file_url={{ item.file_url | urlencode }}"
-   target="_blank" rel="noopener noreferrer">
+   href="{{ url_for('view_file') }}?file_url={{ item.file_url | urlencode }}"
+   target="_blank">
    Open / Preview
 </a>
 
 <br><br>
 
-<!-- ✅ SAFE DOWNLOAD (OPEN THEN SAVE FROM BROWSER) -->
+<!-- ✅ DIRECT SAFE DOWNLOAD -->
 <a class="btn btn-secondary"
-   href="{{ url_for('open_file') }}?file_url={{ item.file_url | urlencode }}"
-   target="_blank">
+   href="{{ item.file_url }}"
+   download>
    Download
 </a>
 
-</td>
-
-<td>
-<form action="{{ url_for('delete_submission', submission_id=item.submission_id) }}"
-      method="post"
-      onsubmit="return confirm('Delete this submission?');">
-
-<button class="btn delete-btn">Delete</button>
-</form>
 </td>
 
 </tr>

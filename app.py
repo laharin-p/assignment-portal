@@ -10,6 +10,8 @@ import requests
 from io import BytesIO
 import mimetypes
 
+
+
 # ---------------- APP ----------------
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev_secret_key")
@@ -97,6 +99,17 @@ def plagiarism_check(assignment_id, file_hash):
 @app.route("/")
 def home():
     return redirect(url_for("student_login"))
+
+
+@app.route("/view-file")
+def view_file():
+    file_url = request.args.get("file_url")
+
+    if not file_url:
+        abort(404)
+
+    # Redirect directly to Cloudinary CDN (mobile optimized)
+    return redirect(file_url, code=302)
 
 # =====================================================
 # ✅ MOBILE FRIENDLY FILE PREVIEW ROUTE
