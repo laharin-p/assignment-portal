@@ -24,8 +24,6 @@
                 <th>File</th>
                 <th>Submitted On</th>
                 <th>Plagiarism (%)</th>
-                <th>Marks</th>
-                <th>Update Marks</th>
             </tr>
         </thead>
         <tbody>
@@ -45,19 +43,10 @@
                 </td>
                 <td>{{ sub.submitted_on.strftime('%d-%m-%Y') }}</td>
                 <td>{{ sub.plagiarism_score }}</td>
-                <td>{{ sub.marks or '-' }}</td>
-                <td>
-                    <form method="POST" class="d-flex flex-column">
-                        <input type="hidden" name="submission_id" value="{{ sub.id }}">
-                        <input type="number" name="marks" step="0.1" min="0" max="5"
-                               class="form-control form-control-sm mb-1" required>
-                        <button type="submit" class="btn btn-primary btn-sm w-100">Update</button>
-                    </form>
-                </td>
             </tr>
             {% else %}
             <tr>
-                <td colspan="7" class="text-center text-muted">
+                <td colspan="5" class="text-center text-muted">
                     No submissions yet
                 </td>
             </tr>
