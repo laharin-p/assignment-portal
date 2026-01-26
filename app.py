@@ -172,27 +172,52 @@ def student_dashboard():
 
     student = Student.query.get(session["student_id"])
 
-    # Normalize for filtering
+    # Normalize inputs for comparison
     student_branch = student.branch.strip().upper()
     student_year = student.year.strip()
     student_section = student.section.strip().upper()
 
-    assignments = Assignment.query.filter(
+    # Fetch assignments for this student
+    all_assignments = Assignment.query.filter(
         db.func.upper(db.func.trim(Assignment.branch)) == student_branch,
         db.func.trim(Assignment.year) == student_year,
         db.func.upper(db.func.trim(Assignment.section)) == student_section
     ).order_by(Assignment.due_date.asc()).all()
 
+    # Fetch student's submissions
     submissions = Submission.query.filter_by(student_id=student.id).all()
+    submitted_assignment_ids = {s.assignment_id for s in submissions}
+
+    # Prepare available assignments
+    available_assignments = []
+    for a in all_assignments:
+        days_left = (a.due_date - date.today()).days
+        available_assignments.append({
+            "assignment": a,
+            "days_left": max(days_left, 0),
+            "can_upload": a.id not in submitted_assignment_ids and days_left >= 0,
+            "color": "green" if days_left > 3 else "orange" if days_left >= 0 else "red"
+        })
+
+    # Prepare submitted assignments
+    submitted_assignments = []
+    for s in submissions:
+        days_left = (s.assignment.due_date - date.today()).days
+        submitted_assignments.append({
+            "assignment": s.assignment,
+            "submitted_on": s.submitted_on.strftime("%Y-%m-%d %H:%M"),
+            "plagiarism_score": s.plagiarism_score,
+            "days_left": max(days_left, 0),
+            "file_url": s.file_url,
+            "color": "green" if days_left > 3 else "orange" if days_left >= 0 else "red"
+        })
 
     return render_template(
         "student/dashboard.html",
-        student=student,
-        assignments=assignments,
-        submissions=submissions,
-        current_date=date.today()
+        student_name=student.name,
+        available_assignments=available_assignments,
+        submitted_assignments=submitted_assignments
     )
-
 @app.route("/student/submit/<int:assignment_id>", methods=["POST"])
 def submit_assignment(assignment_id):
 
