@@ -167,18 +167,26 @@ def student_dashboard():
     if "student_id" not in session:
         return redirect(url_for("student_login"))
 
-    assignments = Assignment.query.all()
+    student = Student.query.get(session["student_id"])
+
+    # ✅ Show only assignments for student's class
+    assignments = Assignment.query.filter_by(
+        branch=student.branch,
+        year=student.year,
+        section=student.section
+    ).all()
+
     submissions = Submission.query.filter_by(
-        student_id=session["student_id"]
+        student_id=student.id
     ).all()
 
     return render_template(
         "student/dashboard.html",
+        student=student,
         assignments=assignments,
         submissions=submissions,
         current_date=date.today()
     )
-
 
 @app.route("/student/submit/<int:assignment_id>", methods=["POST"])
 def submit_assignment(assignment_id):
