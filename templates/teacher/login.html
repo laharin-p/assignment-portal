@@ -4,28 +4,29 @@
 <head>
     <meta charset="UTF-8">
     <title>Teacher Login | Assignment Portal</title>
-    
-<h3 class="text-center mb-1">Teacher Login</h3>
 
+    <meta name="viewport" content="width=device-width, initial-scale=1">
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="/static/css/login.css">
-
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">
 
     <style>
         body {
             background: linear-gradient(135deg, #f0f4ff, #e6ebff);
             min-height: 100vh;
         }
+
         .card {
             border-radius: 12px;
             border: none;
         }
+
         .card-header {
             background-color: #2f3cff;
             color: white;
             border-radius: 12px 12px 0 0;
         }
+
         .btn-primary {
             background-color: #2f3cff;
             border: none;
@@ -35,10 +36,11 @@
 
 <body>
 
-<div class="container d-flex justify-content-center align-items-center">
-    <div class="col-md-4 col-sm-10 mt-5">
+<div class="container d-flex justify-content-center align-items-center min-vh-100">
+    <div class="col-md-4 col-sm-10">
 
         <div class="card shadow-lg">
+
             <div class="card-header text-center py-3">
                 <h4 class="mb-0">Teacher Login</h4>
                 <small>Assignment Management Portal</small>
@@ -52,16 +54,24 @@
                 </div>
                 {% endif %}
 
-                <form method="POST" action="/teacher/login">
+                <form method="POST" action="{{ url_for('teacher_login') }}">
 
                     <div class="mb-3">
                         <label class="form-label">Email</label>
-                        <input type="email" name="email" class="form-control" required>
+                        <input type="email"
+                               name="email"
+                               class="form-control"
+                               placeholder="Enter email"
+                               required>
                     </div>
 
                     <div class="mb-3">
                         <label class="form-label">Password</label>
-                        <input type="password" name="password" class="form-control" required>
+                        <input type="password"
+                               name="password"
+                               class="form-control"
+                               placeholder="Enter password"
+                               required>
                     </div>
 
                     <button type="submit" class="btn btn-primary w-100 py-2">
@@ -74,11 +84,13 @@
             <div class="card-footer text-center bg-white border-0">
                 <small>
                     New teacher?
-                    <a href="/teacher/register" class="fw-semibold text-decoration-none">
+                    <a href="{{ url_for('teacher_register') }}"
+                       class="fw-semibold text-decoration-none">
                         Register here
                     </a>
                 </small>
             </div>
+
         </div>
 
     </div>

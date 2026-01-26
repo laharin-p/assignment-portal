@@ -17,6 +17,10 @@ body {
 
 h1, h2 { color: #333; }
 
+.table-wrapper{
+    overflow-x:auto;
+}
+
 table {
     width: 100%;
     border-collapse: collapse;
@@ -41,7 +45,7 @@ tr.red { background: #f8d7da; }
 
 .btn {
     display: inline-block;
-    padding: 6px 12px;
+    padding: 6px 14px;
     border-radius: 4px;
     color: white;
     text-decoration: none;
@@ -58,6 +62,7 @@ tr.red { background: #f8d7da; }
     margin: 8px 0;
     border-radius: 5px;
     color: white;
+    font-size: 14px;
 }
 
 .flash.success { background: #28a745; }
@@ -65,9 +70,21 @@ tr.red { background: #f8d7da; }
 .flash.warning { background: #ffc107; color: black; }
 .flash.info { background: #17a2b8; }
 
+.logout{
+    float:right;
+    text-decoration:none;
+    color:#007bff;
+    font-weight:600;
+}
+
+.logout:hover{
+    text-decoration:underline;
+}
+
 @media (max-width: 768px) {
-    table, thead, tbody, th, td, tr {
-        font-size: 14px;
+    th, td {
+        font-size: 13px;
+        padding: 8px;
     }
 
     input[type=file] {
@@ -79,14 +96,17 @@ tr.red { background: #f8d7da; }
 
 <body>
 
-<h1>Welcome, {{ session["student_name"] }}</h1>
-<a href="{{ url_for('student_logout') }}">Logout</a>
+<h1>
+Welcome, {{ session.get("student_name") }}
+<a class="logout" href="{{ url_for('student_logout') }}">Logout</a>
+</h1>
 
 <hr>
 
 <h2>Available Assignments</h2>
 
 {% if available_assignments %}
+<div class="table-wrapper">
 <table>
 <tr>
     <th>Title</th>
@@ -96,12 +116,15 @@ tr.red { background: #f8d7da; }
 
 {% for item in available_assignments %}
 <tr class="{{ item.color }}">
+
 <td>{{ item.assignment.title }}</td>
 <td>{{ item.days_left }}</td>
+
 <td>
 {% if item.can_upload %}
 <form action="{{ url_for('submit_assignment', assignment_id=item.assignment.id) }}"
-      method="post" enctype="multipart/form-data">
+      method="POST"
+      enctype="multipart/form-data">
 
     <input type="file" name="file" required>
     <br><br>
@@ -111,9 +134,11 @@ tr.red { background: #f8d7da; }
 <strong>Deadline Passed</strong>
 {% endif %}
 </td>
+
 </tr>
 {% endfor %}
 </table>
+</div>
 {% else %}
 <p>No assignments available.</p>
 {% endif %}
@@ -123,6 +148,7 @@ tr.red { background: #f8d7da; }
 <h2>Submitted Assignments</h2>
 
 {% if submitted_assignments %}
+<div class="table-wrapper">
 <table>
 <tr>
     <th>Title</th>
@@ -142,7 +168,7 @@ tr.red { background: #f8d7da; }
 
 <td>
 
-<!-- ✅ BEST MOBILE OPEN (REDIRECT METHOD) -->
+<!-- Mobile friendly open -->
 <a class="btn view-btn"
    href="{{ url_for('view_file') }}?file_url={{ item.file_url | urlencode }}"
    target="_blank">
@@ -151,7 +177,7 @@ tr.red { background: #f8d7da; }
 
 <br><br>
 
-<!-- ✅ DIRECT SAFE DOWNLOAD -->
+<!-- Direct download -->
 <a class="btn btn-secondary"
    href="{{ item.file_url }}"
    download>
@@ -163,15 +189,16 @@ tr.red { background: #f8d7da; }
 </tr>
 {% endfor %}
 </table>
+</div>
 
 {% else %}
 <p>No submissions yet.</p>
 {% endif %}
 
-<!-- FLASH MESSAGES -->
+<!-- ===== FLASH MESSAGES ===== -->
 {% with messages = get_flashed_messages(with_categories=true) %}
 {% if messages %}
-<div style="position: fixed; top: 20px; right: 20px; max-width: 300px; z-index: 1000;">
+<div style="position: fixed; top: 20px; right: 20px; max-width: 320px; z-index: 1000;">
 {% for category, message in messages %}
 <div class="flash {{ category }}">{{ message }}</div>
 {% endfor %}
@@ -179,7 +206,7 @@ tr.red { background: #f8d7da; }
 
 <script>
 setTimeout(() => {
-    document.querySelectorAll(".flash").forEach(f => f.remove());
+    document.querySelectorAll(".flash").forEach(msg => msg.remove());
 }, 4000);
 </script>
 {% endif %}

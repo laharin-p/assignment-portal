@@ -115,13 +115,13 @@ body{
 
 <!-- 🔴 FLASH MESSAGES -->
 {% with messages = get_flashed_messages(with_categories=true) %}
-  {% if messages %}
-    {% for category, message in messages %}
-      <div class="alert alert-{{ category }} text-center py-2">
-        {{ message }}
-      </div>
-    {% endfor %}
-  {% endif %}
+{% if messages %}
+  {% for category, message in messages %}
+    <div class="alert alert-{{ 'danger' if category=='error' else category }} text-center py-2">
+      {{ message }}
+    </div>
+  {% endfor %}
+{% endif %}
 {% endwith %}
 
 <form method="POST"
@@ -203,7 +203,9 @@ Register
 <div class="card-footer text-center bg-white border-0">
 <small>
 Already registered?
-<a href="{{ url_for('student_login') }}" class="fw-semibold">Login here</a>
+<a href="{{ url_for('student_login') }}" class="fw-semibold">
+Login here
+</a>
 </small>
 </div>
 
@@ -226,7 +228,7 @@ setTimeout(()=>{
     document.getElementById("step3").classList.add("active");
 },2200);
 
-return true; // allow form submit
+return true;
 }
 </script>
 
