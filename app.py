@@ -1,5 +1,5 @@
 
-from flask import Flask, render_template, request, redirect, session, url_for, flash, Response
+from flask import Flask, render_template, request, redirect, session, url_for, flash, Response,send_file
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 import cloudinary, cloudinary.uploader
@@ -7,6 +7,8 @@ import os
 from datetime import datetime, date
 import hashlib
 import requests
+import tempfile
+
 
 # ---------------- APP ----------------
 app = Flask(__name__)
@@ -76,7 +78,10 @@ class Submission(db.Model):
 with app.app_context():
     db.create_all()
 
-# ---------------- FILE PROXY (MOBILE FIX) ----------------
+# ---------------- FILE PROXY ----------------
+
+
+# ---------------- FILE PROXY FOR PDF ----------------
 @app.route("/file")
 def open_file():
     url = request.args.get("url")
@@ -84,15 +89,24 @@ def open_file():
         return "File not found", 404
 
     r = requests.get(url, stream=True)
+    if r.status_code != 200:
+        return "File not accessible", 404
 
-    return Response(
-        r.iter_content(chunk_size=1024),
-        content_type=r.headers.get("Content-Type", "application/pdf"),
-        headers={
-            "Content-Disposition": "inline"
-        }
+    # Save the PDF to a temporary file
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
+    for chunk in r.iter_content(chunk_size=8192):
+        if chunk:
+            tmp.write(chunk)
+    tmp.flush()
+
+    # Serve as PDF with correct headers
+    return send_file(
+        tmp.name,
+        mimetype="application/pdf",
+        as_attachment=True,  # Forces the app to recognize as a downloadable PDF
+        download_name=url.split("/")[-1]
     )
-
+   
 # ---------------- PLAGIARISM ----------------
 def calculate_hash(file):
     file.stream.seek(0)
@@ -158,8 +172,11 @@ def student_dashboard():
     if "student_id" not in session:
         return redirect(url_for("student_login"))
 
+    student = Student.query.get(session["student_id"])  # logged-in student
+
     return render_template(
         "student_dashboard.html",
+        student=student,
         assignments=Assignment.query.all(),
         submissions=Submission.query.filter_by(student_id=session["student_id"]).all(),
         current_date=date.today()
@@ -198,6 +215,22 @@ def submit_assignment(assignment_id):
     db.session.commit()
     flash("Assignment submitted successfully", "success")
     return redirect(url_for("student_dashboard"))
+@app.route("/student/submission/delete/<int:submission_id>", methods=["POST"])
+def delete_submission(submission_id):
+    if "student_id" not in session:
+        return redirect(url_for("student_login"))
+
+    submission = Submission.query.get_or_404(submission_id)
+
+    # Ensure students can only delete their own submissions
+    if submission.student_id != session["student_id"]:
+        flash("Unauthorized action", "danger")
+        return redirect(url_for("student_dashboard"))
+
+    db.session.delete(submission)
+    db.session.commit()
+    flash("Submission deleted", "success")
+    return redirect(url_for("student_dashboard"))
 
 @app.route("/student/logout")
 def student_logout():
@@ -212,6 +245,7 @@ def teacher_login():
         if teacher and check_password_hash(teacher.password, request.form["password"]):
             session.clear()
             session["teacher_id"] = teacher.id
+            session["teacher_name"] = teacher.name
             return redirect(url_for("teacher_dashboard"))
         flash("Invalid credentials", "danger")
     return render_template("teacher_login.html")
@@ -221,6 +255,7 @@ def teacher_dashboard():
     if "teacher_id" not in session:
         return redirect(url_for("teacher_login"))
 
+    teacher = Teacher.query.get(session["teacher_id"])  # logged-in teacher
     assignments = Assignment.query.all()
     students = Student.query.all()
     pending = {}
@@ -231,6 +266,7 @@ def teacher_dashboard():
 
     return render_template(
         "teacher_dashboard.html",
+        teacher=teacher,
         assignments=assignments,
         pending=pending,
         current_date=date.today()
@@ -266,6 +302,21 @@ def teacher_upload():
     db.session.commit()
     flash("Assignment uploaded", "success")
     return redirect(url_for("teacher_dashboard"))
+
+@app.route("/teacher/submissions/<int:assignment_id>")
+def teacher_submissions(assignment_id):
+    if "teacher_id" not in session:
+        return redirect(url_for("teacher_login"))
+
+    assignment = Assignment.query.get_or_404(assignment_id)
+    submissions = Submission.query.filter_by(assignment_id=assignment_id).all()
+
+    return render_template(
+        "teacher_submissions.html",
+        assignment=assignment,
+        submissions=submissions,
+        current_date=date.today()
+    )
 
 @app.route("/teacher/logout")
 def teacher_logout():
