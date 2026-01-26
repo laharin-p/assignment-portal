@@ -263,7 +263,7 @@ def teacher_register():
 
     # GET request – show registration form
     return render_template('teacher_register.html')
-    
+
 @app.route("/teacher/login", methods=["GET", "POST"])
 def teacher_login():
     if request.method == "POST":
@@ -329,21 +329,27 @@ def teacher_upload():
     flash("Assignment uploaded", "success")
     return redirect(url_for("teacher_dashboard"))
 
-@app.route("/teacher/submissions/<int:assignment_id>")
+@app.route('/teacher/submissions/<int:assignment_id>', methods=['GET', 'POST'])
 def teacher_submissions(assignment_id):
-    if "teacher_id" not in session:
-        return redirect(url_for("teacher_login"))
-
-    assignment = Assignment.query.get_or_404(assignment_id)
+    assignment = Assignment.query.get_or_404(assignment_id)  # fetch the assignment
     submissions = Submission.query.filter_by(assignment_id=assignment_id).all()
 
+    if request.method == 'POST':
+        submission_id = request.form['submission_id']
+        marks = request.form['marks']
+        submission = Submission.query.get(submission_id)
+        if submission:
+            submission.marks = marks
+            db.session.commit()
+            flash('Marks updated successfully', 'success')
+        return redirect(url_for('teacher_submissions', assignment_id=assignment_id))
+
     return render_template(
-        "teacher_submissions.html",
+        'teacher_submissions.html',
         assignment=assignment,
         submissions=submissions,
         current_date=date.today()
     )
-
 @app.route("/teacher/logout")
 def teacher_logout():
     session.clear()
