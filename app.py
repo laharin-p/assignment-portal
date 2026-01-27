@@ -8,6 +8,17 @@ from datetime import datetime, date
 import hashlib
 import requests
 import tempfile
+import smtplib
+from email.message import EmailMessage
+import hashlib
+
+def calculate_hash(file):
+    hash_md5 = hashlib.md5()
+    file.stream.seek(0)
+    for chunk in iter(lambda: file.stream.read(4096), b""):
+        hash_md5.update(chunk)
+    file.stream.seek(0)
+    return hash_md5.hexdigest()
 
 
 # ---------------- APP ----------------
@@ -411,6 +422,24 @@ def delete_assignment(assignment_id):
 def teacher_logout():
     session.clear()
     return redirect(url_for("teacher_login"))
+def send_email(to_email, subject, body):
+    sender_email = os.environ.get("EMAIL_USER")   # your Gmail
+    app_password = os.environ.get("EMAIL_PASS")  # Gmail App Password
+
+    msg = EmailMessage()
+    msg["From"] = sender_email
+    msg["To"] = to_email
+    msg["Subject"] = subject
+    msg.set_content(body)
+
+    try:
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+            server.login(sender_email, app_password)
+            server.send_message(msg)
+        print(f"Email sent to {to_email}")
+
+    except Exception as e:
+        print("Email error:", e)
 
 if __name__ == "__main__":
     app.run(debug=True)
