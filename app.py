@@ -30,11 +30,19 @@ DATABASE_URL = os.environ.get("DATABASE_URL")
 if not DATABASE_URL:
     raise RuntimeError("DATABASE_URL is not set")
 
+# Fix old postgres:// issue
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
 app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
+# IMPORTANT: add engine options
+app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+    "pool_pre_ping": True,   # checks connection before using
+    "pool_recycle": 300     # reconnect every 5 minutes
+}
+
 db = SQLAlchemy(app)
 
 # ---------------- CLOUDINARY ----------------
