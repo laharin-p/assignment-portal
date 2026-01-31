@@ -128,7 +128,10 @@ def open_file():
    
 # ---------------- PLAGIARISM ----------------
 def plagiarism_check(assignment_id, new_content):
-    previous = Submission.query.filter_by(assignment_id=assignment_id).all()
+    previous = Submission.query.filter_by(assignment_id=assignment_id)\
+                          .order_by(Submission.submitted_on.desc())\
+                          .limit(20)\
+                          .all()
 
     if not previous:
         return 0.0   # First submission = no plagiarism
