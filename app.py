@@ -11,6 +11,12 @@ import tempfile
 import smtplib
 from email.message import EmailMessage
 import hashlib
+import requests
+from io import BytesIO
+from PIL import Image
+import pytesseract
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 
 def calculate_hash(file):
     hash_md5 = hashlib.md5()
@@ -127,34 +133,58 @@ def open_file():
     )
    
 # ---------------- PLAGIARISM ----------------
+
+
+def extract_text_from_file(url):
+
+    # Image
+    if url.endswith(('.png', '.jpg', '.jpeg')):
+        img = Image.open(BytesIO(requests.get(url).content))
+        return pytesseract.image_to_string(img)
+
+    # Text-based file
+    else:
+        return requests.get(url).text
+
+
 def plagiarism_check(assignment_id, new_content):
+
     previous = Submission.query.filter_by(assignment_id=assignment_id)\
-                          .order_by(Submission.submitted_on.desc())\
-                          .limit(20)\
-                          .all()
+        .order_by(Submission.submitted_on.desc())\
+        .limit(20)\
+        .all()
 
     if not previous:
-        return 0.0   # First submission = no plagiarism
+        return 0.0
 
-    new_words = set(new_content.lower().split())
+    new_text = new_content.lower().strip()
+
+    if len(new_text) < 30:
+        return 0.0
+
     highest = 0
 
     for sub in previous:
         try:
-            r = requests.get(sub.file_url)
-            old_text = r.text.lower()
-            old_words = set(old_text.split())
+            old_text = extract_text_from_file(sub.file_url).lower().strip()
 
-            common = new_words.intersection(old_words)
+            if len(old_text) < 30:
+                continue
 
-            if len(new_words) > 0:
-                similarity = (len(common) / len(new_words)) * 100
-                highest = max(highest, similarity)
+            texts = [new_text, old_text]
+
+            vectorizer = TfidfVectorizer()
+            tfidf = vectorizer.fit_transform(texts)
+
+            similarity = cosine_similarity(tfidf[0:1], tfidf[1:2])[0][0] * 100
+
+            highest = max(highest, similarity)
 
         except:
-            pass
+            continue
 
     return round(highest, 2)
+
 # ---------------- HOME ----------------
 @app.route("/")
 def home():
