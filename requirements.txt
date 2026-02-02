@@ -8,3 +8,7 @@ PyPDF2
 python-docx
 psycopg2-binary
 requests
+pillow
+pytesseract
+scikit-learn
+requests
