@@ -175,6 +175,7 @@ def extract_text_from_file(file_url):
 
 
 # ---------------- PLAGIARISM ----------------
+
 def plagiarism_check(assignment_id, new_file_url, new_file_hash):
 
     previous = Submission.query.filter_by(
@@ -184,37 +185,51 @@ def plagiarism_check(assignment_id, new_file_url, new_file_hash):
     if not previous:
         return 0.0
 
-    new_text = extract_text_from_file(new_file_url)
+    new_text = normalize_text(
+        extract_text_from_file(new_file_url)
+    )
 
-    print("NEW TEXT LENGTH:", len(new_text))  # DEBUG
-
-    if not new_text or len(new_text) < 30:
+    if not new_text or len(new_text) < 100:
         return 0.0
 
     highest = 0.0
 
     for sub in previous:
 
-        # 🔥 EXACT COPY
+        # 🔥 Exact copy
         if sub.file_hash == new_file_hash:
             return 100.0
 
-        old_text = extract_text_from_file(sub.file_url)
+        old_text = normalize_text(
+            extract_text_from_file(sub.file_url)
+        )
 
-        print("OLD TEXT LENGTH:", len(old_text))  # DEBUG
-
-        if not old_text or len(old_text) < 30:
+        if not old_text or len(old_text) < 100:
             continue
 
-        vectorizer = TfidfVectorizer(stop_words="english")
-        tfidf = vectorizer.fit_transform([new_text, old_text])
+        vectorizer = TfidfVectorizer(
+            stop_words="english",
+            max_features=5000   # 🔥 VERY IMPORTANT
+        )
 
+        tfidf = vectorizer.fit_transform([new_text, old_text])
         similarity = cosine_similarity(tfidf[0], tfidf[1])[0][0] * 100
+
         highest = max(highest, similarity)
+
+        # 🚀 Early exit if already very high
+        if highest >= 95:
+            break
 
     return round(highest, 2)
 
 
+
+MAX_TEXT_LEN = 15000
+
+def normalize_text(text):
+    text = text.lower().strip()
+    return text[:MAX_TEXT_LEN]
 
 # ---------------- HOME ----------------
 @app.route("/")
@@ -285,7 +300,7 @@ def submit_assignment(assignment_id):
 
     assignment = Assignment.query.get_or_404(assignment_id)
 
-    # ⛔ Block late submission
+    # ⛔ Late submission block
     if assignment.due_date < date.today():
         flash("Submission deadline has passed", "danger")
         return redirect(url_for("student_dashboard"))
@@ -295,10 +310,11 @@ def submit_assignment(assignment_id):
         flash("No file selected", "danger")
         return redirect(url_for("student_dashboard"))
 
-    # 🔐 STEP 1: Calculate hash (BEFORE upload)
+    # 🔐 Hash BEFORE upload
     file_hash = calculate_hash(file)
+    file.seek(0)
 
-    # ☁️ STEP 2: Upload file
+    # ☁️ Upload
     upload = cloudinary.uploader.upload(
         file,
         resource_type="raw",
@@ -306,26 +322,27 @@ def submit_assignment(assignment_id):
         unique_filename=True
     )
 
-    # 🧠 STEP 3: Plagiarism check (CORRECT PLACE)
+    # 🧠 Plagiarism check
     score = plagiarism_check(
         assignment_id,
         upload["secure_url"],
         file_hash
     )
 
-    # 💾 STEP 4: Save submission
+    # 💾 SAVE submission (no status field)
     submission = Submission(
         student_id=session["student_id"],
         assignment_id=assignment_id,
         file_url=upload["secure_url"],
         file_hash=file_hash,
         submitted_on=date.today(),
-        plagiarism_score=score
+        plagiarism_score=score,
     )
 
     db.session.add(submission)
     db.session.commit()
 
+    # ✅ Success message regardless of plagiarism score
     flash(f"Assignment submitted successfully (Plagiarism: {score}%)", "success")
     return redirect(url_for("student_dashboard"))
 
