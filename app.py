@@ -133,56 +133,81 @@ def open_file():
         as_attachment=True,  # Forces the app to recognize as a downloadable PDF
         download_name=url.split("/")[-1]
     )
-   
+# ---------------- TEXT EXTRACTION ----------------
+def extract_text_from_file(file_url):
+    """
+    Extracts readable text from uploaded file URL.
+    Supports TXT and PDF (OCR fallback).
+    """
+    try:
+        response = requests.get(file_url, timeout=10)
+        if response.status_code != 200:
+            return ""
+
+        # TEXT FILE
+        if file_url.lower().endswith(".txt"):
+            return response.text.lower().strip()
+
+        # PDF FILE (OCR)
+        if file_url.lower().endswith(".pdf"):
+            image = Image.open(BytesIO(response.content))
+            text = pytesseract.image_to_string(image)
+            return text.lower().strip()
+
+        return ""
+
+    except Exception as e:
+        print("Text extraction error:", e)
+        return ""
+  
 # ---------------- PLAGIARISM ----------------
 
 
 
 
-def plagiarism_check(assignment_id, new_content):
+# ---------------- PLAGIARISM ----------------
+def plagiarism_check(assignment_id, new_file_url, new_file_hash):
+    previous_submissions = Submission.query.filter_by(
+        assignment_id=assignment_id
+    ).all()
 
-    previous = Submission.query.filter_by(assignment_id=assignment_id)\
-        .order_by(Submission.submitted_on.desc())\
-        .limit(20)\
-        .all()
-
-    if not previous:
+    # No previous submissions
+    if not previous_submissions:
         return 0.0
 
-    new_text = new_content.lower().strip()
+    # Extract text from newly uploaded file
+    new_text = extract_text_from_file(new_file_url)
 
-    if len(new_text) < 30:
+    if not new_text or len(new_text) < 30:
         return 0.0
 
-    highest = 0.0
+    highest_similarity = 0.0
 
-    for sub in previous:
+    for sub in previous_submissions:
+
+        # 🚀 Exact copy detection
+        if sub.file_hash == new_file_hash:
+            return 100.0
+
+        old_text = extract_text_from_file(sub.file_url)
+
+        if not old_text or len(old_text) < 30:
+            continue
+
         try:
-            old_text = extract_text_from_file(sub.file_url)
-
-            if not old_text:
-                continue
-
-            old_text = old_text.lower().strip()
-
-            if len(old_text) < 30:
-                continue
-
-            vectorizer = TfidfVectorizer(stop_words='english')
+            vectorizer = TfidfVectorizer(stop_words="english")
             tfidf = vectorizer.fit_transform([new_text, old_text])
 
-            similarity = cosine_similarity(tfidf[0], tfidf[1])[0][0]
+            similarity = cosine_similarity(
+                tfidf[0], tfidf[1]
+            )[0][0] * 100
 
-            similarity = float(similarity) * 100
-
-            print("Similarity:", similarity)  # debug
-
-            highest = max(highest, similarity)
+            highest_similarity = max(highest_similarity, similarity)
 
         except Exception as e:
             print("Plagiarism error:", e)
 
-    return round(highest, 2)
+    return round(highest_similarity, 2)
 
 
 # ---------------- HOME ----------------
@@ -248,20 +273,26 @@ def student_dashboard():
 
 @app.route("/student/submit/<int:assignment_id>", methods=["POST"])
 def submit_assignment(assignment_id):
+
     if "student_id" not in session:
         return redirect(url_for("student_login"))
+
+    assignment = Assignment.query.get_or_404(assignment_id)
+
+    # ⛔ Block late submission
+    if assignment.due_date < date.today():
+        flash("Submission deadline has passed", "danger")
+        return redirect(url_for("student_dashboard"))
 
     file = request.files.get("file")
     if not file:
         flash("No file selected", "danger")
         return redirect(url_for("student_dashboard"))
 
-    file_content = file.read().decode(errors="ignore")
-    file.seek(0)
-
-    score = plagiarism_check(assignment_id, file_content)
-
+    # 🔐 STEP 1: Calculate hash (BEFORE upload)
     file_hash = calculate_hash(file)
+
+    # ☁️ STEP 2: Upload file
     upload = cloudinary.uploader.upload(
         file,
         resource_type="raw",
@@ -269,6 +300,14 @@ def submit_assignment(assignment_id):
         unique_filename=True
     )
 
+    # 🧠 STEP 3: Plagiarism check (CORRECT PLACE)
+    score = plagiarism_check(
+        assignment_id,
+        upload["secure_url"],
+        file_hash
+    )
+
+    # 💾 STEP 4: Save submission
     submission = Submission(
         student_id=session["student_id"],
         assignment_id=assignment_id,
@@ -280,8 +319,10 @@ def submit_assignment(assignment_id):
 
     db.session.add(submission)
     db.session.commit()
-    flash("Assignment submitted successfully", "success")
+
+    flash(f"Assignment submitted successfully (Plagiarism: {score}%)", "success")
     return redirect(url_for("student_dashboard"))
+
 
 @app.route("/student/delete_submission/<int:submission_id>", methods=["POST"])
 def delete_submission(submission_id):
