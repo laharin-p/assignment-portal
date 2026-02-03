@@ -18,6 +18,15 @@ import pytesseract
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from numpy import float64  # just to be explicit if needed
+import re
+
+def normalize_text(text):
+    # Lowercase, remove non-alphanumeric (except spaces), strip extra whitespace
+    text = text.lower()
+    text = re.sub(r'[^a-z0-9\s]', '', text)
+    text = re.sub(r'\s+', ' ', text).strip()
+    return text
+
 
 
 
