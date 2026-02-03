@@ -17,6 +17,7 @@ from PIL import Image
 import pytesseract
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+from numpy import float64  # just to be explicit if needed
 
 
 
@@ -176,6 +177,8 @@ def extract_text_from_file(file_url):
 
 # ---------------- PLAGIARISM ----------------
 
+
+
 def plagiarism_check(assignment_id, new_file_url, new_file_hash):
 
     previous = Submission.query.filter_by(
@@ -209,27 +212,21 @@ def plagiarism_check(assignment_id, new_file_url, new_file_hash):
 
         vectorizer = TfidfVectorizer(
             stop_words="english",
-            max_features=5000   # 🔥 VERY IMPORTANT
+            max_features=5000
         )
 
         tfidf = vectorizer.fit_transform([new_text, old_text])
         similarity = cosine_similarity(tfidf[0], tfidf[1])[0][0] * 100
 
+        similarity = float(similarity)  # <-- convert here
+
         highest = max(highest, similarity)
 
-        # 🚀 Early exit if already very high
         if highest >= 95:
             break
 
-    return round(highest, 2)
+    return float(round(highest, 2))  # <-- ensure native float on return
 
-
-
-MAX_TEXT_LEN = 15000
-
-def normalize_text(text):
-    text = text.lower().strip()
-    return text[:MAX_TEXT_LEN]
 
 # ---------------- HOME ----------------
 @app.route("/")
