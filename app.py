@@ -347,6 +347,8 @@ def submit_assignment(assignment_id):
 
     db.session.add(submission)
     db.session.commit()
+    print("TOTAL SUBMISSIONS AFTER SAVE:", Submission.query.count())
+
 
     # ✅ Success message regardless of plagiarism score
     flash(f"Assignment submitted successfully (Plagiarism: {score}%)", "success")
@@ -479,7 +481,14 @@ def teacher_upload():
 @app.route('/teacher/submissions/<int:assignment_id>')
 def teacher_submissions(assignment_id):
     assignment = Assignment.query.get_or_404(assignment_id)
-    submissions = Submission.query.filter_by(assignment_id=assignment_id).all()
+
+    # safer query (fixes many Render/Postgres issues)
+    submissions = Submission.query.filter(
+        Submission.assignment_id == assignment_id
+    ).all()
+
+    # debug (temporary – you can remove later)
+    print("TEACHER SUBMISSIONS COUNT:", len(submissions))
 
     return render_template(
         'teacher_submissions.html',
@@ -487,6 +496,7 @@ def teacher_submissions(assignment_id):
         submissions=submissions,
         current_date=date.today()
     )
+
 @app.route('/teacher/pending/<int:assignment_id>')
 def pending_students(assignment_id):
     assignment = Assignment.query.get_or_404(assignment_id)
