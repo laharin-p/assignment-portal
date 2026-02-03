@@ -135,18 +135,6 @@ def open_file():
 # ---------------- PLAGIARISM ----------------
 
 
-def extract_text_from_file(url):
-
-    # Image
-    if url.endswith(('.png', '.jpg', '.jpeg')):
-        img = Image.open(BytesIO(requests.get(url).content))
-        return pytesseract.image_to_string(img)
-
-    # Text-based file
-    else:
-        return requests.get(url).text
-
-
 def plagiarism_check(assignment_id, new_content):
 
     previous = Submission.query.filter_by(assignment_id=assignment_id)\
@@ -162,7 +150,7 @@ def plagiarism_check(assignment_id, new_content):
     if len(new_text) < 30:
         return 0.0
 
-    highest = 0
+    highest = 0.0
 
     for sub in previous:
         try:
@@ -176,14 +164,22 @@ def plagiarism_check(assignment_id, new_content):
             vectorizer = TfidfVectorizer()
             tfidf = vectorizer.fit_transform(texts)
 
-            similarity = cosine_similarity(tfidf[0:1], tfidf[1:2])[0][0] * 100
+            similarity = cosine_similarity(
+                tfidf[0:1],
+                tfidf[1:2]
+            )[0][0]
+
+            # 🔥 Convert numpy float to python float
+            similarity = float(similarity) * 100
 
             highest = max(highest, similarity)
 
-        except:
+        except Exception as e:
+            print("Plagiarism error:", e)
             continue
 
-    return round(highest, 2)
+    return round(float(highest), 2)
+
 
 # ---------------- HOME ----------------
 @app.route("/")
