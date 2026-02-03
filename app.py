@@ -134,31 +134,41 @@ def open_file():
         download_name=url.split("/")[-1]
     )
 # ---------------- TEXT EXTRACTION ----------------
+
 def extract_text_from_file(file_url):
     """
-    Extracts readable text from uploaded file URL.
-    Supports TXT and PDF (OCR fallback).
+    Robust text extraction for Cloudinary RAW files
+    (works even without .pdf extension)
     """
     try:
-        response = requests.get(file_url, timeout=10)
+        response = requests.get(file_url, timeout=15)
         if response.status_code != 200:
             return ""
 
-        # TEXT FILE
-        if file_url.lower().endswith(".txt"):
-            return response.text.lower().strip()
+        content = response.content
 
-        # PDF FILE (OCR)
-        if file_url.lower().endswith(".pdf"):
-            image = Image.open(BytesIO(response.content))
+        # 1️⃣ Try reading as TEXT
+        try:
+            text = content.decode("utf-8", errors="ignore").lower().strip()
+            if len(text) > 50:
+                return text
+        except:
+            pass
+
+        # 2️⃣ OCR fallback (PDF / scanned)
+        try:
+            image = Image.open(BytesIO(content))
             text = pytesseract.image_to_string(image)
             return text.lower().strip()
+        except:
+            pass
 
         return ""
 
     except Exception as e:
         print("Text extraction error:", e)
         return ""
+ ""
   
 # ---------------- PLAGIARISM ----------------
 
@@ -167,47 +177,44 @@ def extract_text_from_file(file_url):
 
 # ---------------- PLAGIARISM ----------------
 def plagiarism_check(assignment_id, new_file_url, new_file_hash):
-    previous_submissions = Submission.query.filter_by(
+
+    previous = Submission.query.filter_by(
         assignment_id=assignment_id
     ).all()
 
-    # No previous submissions
-    if not previous_submissions:
+    if not previous:
         return 0.0
 
-    # Extract text from newly uploaded file
     new_text = extract_text_from_file(new_file_url)
+
+    print("NEW TEXT LENGTH:", len(new_text))  # DEBUG
 
     if not new_text or len(new_text) < 30:
         return 0.0
 
-    highest_similarity = 0.0
+    highest = 0.0
 
-    for sub in previous_submissions:
+    for sub in previous:
 
-        # 🚀 Exact copy detection
+        # 🔥 EXACT COPY
         if sub.file_hash == new_file_hash:
             return 100.0
 
         old_text = extract_text_from_file(sub.file_url)
 
+        print("OLD TEXT LENGTH:", len(old_text))  # DEBUG
+
         if not old_text or len(old_text) < 30:
             continue
 
-        try:
-            vectorizer = TfidfVectorizer(stop_words="english")
-            tfidf = vectorizer.fit_transform([new_text, old_text])
+        vectorizer = TfidfVectorizer(stop_words="english")
+        tfidf = vectorizer.fit_transform([new_text, old_text])
 
-            similarity = cosine_similarity(
-                tfidf[0], tfidf[1]
-            )[0][0] * 100
+        similarity = cosine_similarity(tfidf[0], tfidf[1])[0][0] * 100
+        highest = max(highest, similarity)
 
-            highest_similarity = max(highest_similarity, similarity)
+    return round(highest, 2)
 
-        except Exception as e:
-            print("Plagiarism error:", e)
-
-    return round(highest_similarity, 2)
 
 
 # ---------------- HOME ----------------
