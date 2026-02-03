@@ -18,6 +18,8 @@ import pytesseract
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
+
+
 def calculate_hash(file):
     hash_md5 = hashlib.md5()
     file.stream.seek(0)
@@ -135,6 +137,8 @@ def open_file():
 # ---------------- PLAGIARISM ----------------
 
 
+
+
 def plagiarism_check(assignment_id, new_content):
 
     previous = Submission.query.filter_by(assignment_id=assignment_id)\
@@ -154,31 +158,31 @@ def plagiarism_check(assignment_id, new_content):
 
     for sub in previous:
         try:
-            old_text = extract_text_from_file(sub.file_url).lower().strip()
+            old_text = extract_text_from_file(sub.file_url)
+
+            if not old_text:
+                continue
+
+            old_text = old_text.lower().strip()
 
             if len(old_text) < 30:
                 continue
 
-            texts = [new_text, old_text]
+            vectorizer = TfidfVectorizer(stop_words='english')
+            tfidf = vectorizer.fit_transform([new_text, old_text])
 
-            vectorizer = TfidfVectorizer()
-            tfidf = vectorizer.fit_transform(texts)
+            similarity = cosine_similarity(tfidf[0], tfidf[1])[0][0]
 
-            similarity = cosine_similarity(
-                tfidf[0:1],
-                tfidf[1:2]
-            )[0][0]
-
-            # 🔥 Convert numpy float to python float
             similarity = float(similarity) * 100
+
+            print("Similarity:", similarity)  # debug
 
             highest = max(highest, similarity)
 
         except Exception as e:
             print("Plagiarism error:", e)
-            continue
 
-    return round(float(highest), 2)
+    return round(highest, 2)
 
 
 # ---------------- HOME ----------------
