@@ -152,7 +152,7 @@ def extract_text_from_file(file_url):
             text = content.decode("utf-8", errors="ignore").lower().strip()
             if len(text) > 50:
                 return text
-        except:
+        except Exception:
             pass
 
         # 2️⃣ OCR fallback (PDF / scanned)
@@ -160,7 +160,7 @@ def extract_text_from_file(file_url):
             image = Image.open(BytesIO(content))
             text = pytesseract.image_to_string(image)
             return text.lower().strip()
-        except:
+        except Exception:
             pass
 
         return ""
@@ -168,8 +168,7 @@ def extract_text_from_file(file_url):
     except Exception as e:
         print("Text extraction error:", e)
         return ""
- ""
-  
+
 # ---------------- PLAGIARISM ----------------
 
 
