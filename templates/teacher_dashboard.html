@@ -148,7 +148,22 @@ Delete
 </button>
 
 </form>
+<!-- Extend Due Date -->
+<form action="{{ url_for('extend_due_date', assignment_id=a.id) }}"
+      method="POST"
+      class="w-100 mt-2">
 
+    <input type="date"
+           name="new_due_date"
+           class="form-control form-control-sm mb-1"
+           min="{{ current_date }}"
+           required>
+
+    <button type="submit"
+            class="btn btn-sm btn-warning w-100">
+        Extend Due Date
+    </button>
+</form>
 </div>
 
 </div>
@@ -227,6 +242,22 @@ View Submissions
 Delete
 </button>
 
+</form>
+<!-- Extend Due Date Form -->
+<form action="{{ url_for('extend_due_date', assignment_id=a.id) }}"
+      method="POST"
+      class="mt-1">
+
+    <input type="date"
+           name="new_due_date"
+           class="form-control form-control-sm mb-1"
+           min="{{ current_date }}"
+           required>
+
+    <button type="submit"
+            class="btn btn-sm btn-warning">
+        Extend
+    </button>
 </form>
 
 </td>

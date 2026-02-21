@@ -561,6 +561,24 @@ def send_email(to_email, subject, body):
 
     except Exception as e:
         print("Email error:", e)
+@app.route("/teacher/extend_due_date/<int:assignment_id>", methods=["POST"])
+def extend_due_date(assignment_id):
+    if "teacher_id" not in session:
+        return redirect(url_for("teacher_login"))
+
+    assignment = Assignment.query.get_or_404(assignment_id)
+
+    new_due_date = request.form.get("new_due_date")
+
+    if not new_due_date:
+        flash("Please select a new date", "danger")
+        return redirect(url_for("teacher_dashboard"))
+
+    assignment.due_date = datetime.strptime(new_due_date, "%Y-%m-%d").date()
+    db.session.commit()
+
+    flash("Due date extended successfully", "success")
+    return redirect(url_for("teacher_dashboard"))
 
 if __name__ == "__main__":
     app.run(debug=True)
