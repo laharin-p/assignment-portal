@@ -19,6 +19,11 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from numpy import float64  # just to be explicit if needed
 import re
+from dotenv import load_dotenv
+from flask_migrate import Migrate
+
+
+load_dotenv()
 
 def normalize_text(text):
     # Lowercase, remove non-alphanumeric (except spaces), strip extra whitespace
@@ -62,6 +67,7 @@ app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
 }
 
 db = SQLAlchemy(app)
+migrate = Migrate(app, db)
 
 # ---------------- CLOUDINARY ----------------
 cloudinary.config(
@@ -106,7 +112,7 @@ class Submission(db.Model):
     file_hash = db.Column(db.String(64))
     submitted_on = db.Column(db.Date)
     plagiarism_score = db.Column(db.Float)
-    
+    public_id = db.Column(db.String(300), nullable=True)
 
     assignment = db.relationship("Assignment")
     student = db.relationship("Student")
