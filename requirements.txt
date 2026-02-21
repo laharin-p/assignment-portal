@@ -13,3 +13,4 @@ pytesseract
 scikit-learn
 requests
 python-dotenv
+flask-migrate
