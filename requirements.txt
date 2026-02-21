@@ -12,3 +12,4 @@ pillow
 pytesseract
 scikit-learn
 requests
+python-dotenv
