@@ -198,7 +198,7 @@ def plagiarism_check(assignment_id, new_file_url, new_file_hash):
 
     previous = Submission.query.filter_by(
         assignment_id=assignment_id
-    ).all()
+    ).limit(5).all()   # 🔥 limit comparisons
 
     if not previous:
         return 0.0
@@ -210,11 +210,12 @@ def plagiarism_check(assignment_id, new_file_url, new_file_hash):
     if not new_text or len(new_text) < 100:
         return 0.0
 
+    new_words = set(new_text.split())
     highest = 0.0
 
     for sub in previous:
 
-        # 🔥 Exact copy
+        # Exact copy check
         if sub.file_hash == new_file_hash:
             return 100.0
 
@@ -225,22 +226,22 @@ def plagiarism_check(assignment_id, new_file_url, new_file_hash):
         if not old_text or len(old_text) < 100:
             continue
 
-        vectorizer = TfidfVectorizer(
-            stop_words="english",
-            max_features=5000
-        )
+        old_words = set(old_text.split())
 
-        tfidf = vectorizer.fit_transform([new_text, old_text])
-        similarity = cosine_similarity(tfidf[0], tfidf[1])[0][0] * 100
+        # 🔥 Jaccard similarity
+        intersection = len(new_words & old_words)
+        union = len(new_words | old_words)
 
-        similarity = float(similarity)  # <-- convert here
+        if union == 0:
+            continue
 
+        similarity = (intersection / union) * 100
         highest = max(highest, similarity)
 
         if highest >= 95:
             break
 
-    return float(round(highest, 2))  # <-- ensure native float on return
+    return round(highest, 2) # <-- ensure native float on return
 
 
 # ---------------- HOME ----------------

@@ -10,7 +10,6 @@ psycopg2-binary
 requests
 pillow
 pytesseract
-scikit-learn
 requests
 python-dotenv
 flask-migrate
