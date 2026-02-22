@@ -15,7 +15,7 @@ from PIL import Image
 import pytesseract
 #from sklearn.feature_extraction.text import TfidfVectorizer
 #from sklearn.metrics.pairwise import cosine_similarity
-from numpy import float64  # just to be explicit if needed
+ # just to be explicit if needed
 import re
 from dotenv import load_dotenv
 from flask_migrate import Migrate
