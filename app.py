@@ -10,13 +10,11 @@ import requests
 import tempfile
 import smtplib
 from email.message import EmailMessage
-import hashlib
-import requests
 from io import BytesIO
 from PIL import Image
 import pytesseract
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
+#from sklearn.feature_extraction.text import TfidfVectorizer
+#from sklearn.metrics.pairwise import cosine_similarity
 from numpy import float64  # just to be explicit if needed
 import re
 from dotenv import load_dotenv
